@@ -1523,10 +1523,11 @@ body.auth-locked .topbar-actions {
   font-weight: 800;
 }
 .home-hero.is-authenticated .member-role-badge { display: inline-block; }
-body.role-member [data-page-target="susi-teacher"],
-body.role-member [data-page-target="jeongsi-teacher"] {
+body.role-student [data-page-target="susi-teacher"],
+body.role-student [data-page-target="jeongsi-teacher"] {
   display: none !important;
 }
+
 
 /* Susi teacher dashboard */
 .teacher-panel {
@@ -2465,7 +2466,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <span class="home-kicker">Classroom Admission Board</span>
         <h1>학급 진학 관리를<br><span>한곳에서 간편하게</span></h1>
         <p id="homeWelcomeText">연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.</p>
-        <span class="member-role-badge" id="roleText">일반회원</span>
+        <span class="member-role-badge" id="roleText">학생</span>
         <div class="home-start-actions" id="homeStartActions" hidden>
           <button type="button" class="home-start" id="btnOpenSusi">수시 관리 시작 →</button>
           <button type="button" class="home-start jeongsi" id="btnOpenJeongsi">정시 관리 시작 →</button>
@@ -2673,9 +2674,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const AUTH_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/';
   const AUTH_RECOVERY_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/?type=recovery';
   const ROLE_LABELS = {
-    member: '일반회원',
-    teacher: '교사회원',
-    admin: '관리자'
+    student: '학생',
+    teacher: '교사'
   };
 
   let isPasswordRecovery = false;
@@ -3307,7 +3307,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   function canAccessTeacherPages() {
     const role = currentProfile && currentProfile.role;
-    return role === 'teacher' || role === 'admin';
+    return role === 'teacher';
   }
 
   function setPage(page) {
@@ -3450,11 +3450,27 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function updateRoleUi(role) {
-    const roleKey = ROLE_LABELS[role] ? role : 'member';
-    document.body.classList.remove('role-member', 'role-teacher', 'role-admin');
+    // 예전 member/admin 데이터 호환
+    let roleKey = role;
+    if (roleKey === 'member' || roleKey === 'admin') roleKey = roleKey === 'admin' ? 'teacher' : 'student';
+    if (!ROLE_LABELS[roleKey]) roleKey = 'student';
+    document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
     document.body.classList.add('role-' + roleKey);
     const roleText = $('#roleText');
     if (roleText) roleText.textContent = ROLE_LABELS[roleKey];
+
+    // 권한별 메뉴 표시
+    document.querySelectorAll('[data-page-target="susi"], [data-page-target="jeongsi"]').forEach((el) => {
+      el.hidden = roleKey !== 'student' && roleKey !== 'teacher';
+    });
+    document.querySelectorAll('[data-page-target="susi-teacher"], [data-page-target="jeongsi-teacher"]').forEach((el) => {
+      el.hidden = roleKey !== 'teacher';
+    });
+    const startSusi = $('#btnOpenSusi');
+    const startJeongsi = $('#btnOpenJeongsi');
+    // 홈 시작 버튼: 학생/교사 모두 입력 보드 진입 가능, 교사만 확인용 탭 사용
+    if (startSusi) startSusi.hidden = !(roleKey === 'student' || roleKey === 'teacher');
+    if (startJeongsi) startJeongsi.hidden = !(roleKey === 'student' || roleKey === 'teacher');
   }
 
   function unlockApp(profile, fallbackName) {
@@ -3466,14 +3482,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const startActions = $('#homeStartActions');
     const hero = document.querySelector('.home-hero');
     const welcome = $('#homeWelcomeText');
-    currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'member' };
+    currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'student' };
     isAuthenticated = true;
     if (gate) gate.classList.add('is-hidden');
     if (startActions) startActions.hidden = false;
     if (hero) hero.classList.add('is-authenticated');
     const dataTools = $('#dataTools');
     if (dataTools) dataTools.hidden = false;
-    updateRoleUi(currentProfile.role || 'member');
+    updateRoleUi(currentProfile.role || 'student');
     const greetName = currentProfile.name || fallbackName || '회원';
     if (welcome) welcome.textContent = greetName + '님, 반갑습니다. 연도별 수시·정시 자료와 학생별 지원 현황을 관리하세요.';
     updateUserChip(fallbackName || greetName);
@@ -3487,7 +3503,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     isAuthenticated = false;
     currentProfile = null;
     document.body.classList.add('auth-locked');
-    document.body.classList.remove('role-member', 'role-teacher', 'role-admin');
+    document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
     const gate = $('#loginGate');
     if (gate) gate.classList.remove('is-hidden');
     const startActions = $('#homeStartActions');
@@ -3503,7 +3519,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       welcome.textContent = '연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.';
     }
     const roleText = $('#roleText');
-    if (roleText) roleText.textContent = '일반회원';
+    if (roleText) roleText.textContent = '학생';
     showAuthMessage('');
     setPage('home');
     setTimeout(() => {
@@ -3544,7 +3560,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         {
           name: (user.user_metadata && user.user_metadata.name) || '',
           school: (user.user_metadata && user.user_metadata.school) || '',
-          role: 'member'
+          role: 'student'
         },
         user.email
       );
