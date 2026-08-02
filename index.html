@@ -2671,18 +2671,83 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const SUPABASE_URL = 'https://lqlysybhyoinwwevrill.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-5g36RwSdOqVBP4eNoySsA_xs3MhViZ';
   const AUTH_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/';
+  const AUTH_RECOVERY_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/?type=recovery';
   const ROLE_LABELS = {
     member: '일반회원',
     teacher: '교사회원',
     admin: '관리자'
   };
+
+  let isPasswordRecovery = false;
+
+  function detectPasswordRecoveryFromUrl() {
+    const hash = String(window.location.hash || '');
+    const search = String(window.location.search || '');
+    const combined = hash + '&' + search;
+    return /type=recovery/i.test(combined) || /type%3Drecovery/i.test(combined);
+  }
+
+  function markPasswordRecovery(active) {
+    isPasswordRecovery = !!active;
+    try {
+      if (active) {
+        sessionStorage.setItem('cab-password-recovery', '1');
+      } else {
+        sessionStorage.removeItem('cab-password-recovery');
+        sessionStorage.removeItem('cab-password-recovery-pending');
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  function isPasswordRecoveryActive() {
+    if (isPasswordRecovery || detectPasswordRecoveryFromUrl()) return true;
+    try {
+      if (sessionStorage.getItem('cab-password-recovery') === '1') return true;
+      // 비밀번호 찾기 직후 같은 브라우저로 메일 링크를 연 경우
+      if (sessionStorage.getItem('cab-password-recovery-pending') === '1') return true;
+    } catch (_) { /* ignore */ }
+    return false;
+  }
+
+  function clearAuthRedirectHash() {
+    try {
+      if (window.history && window.history.replaceState) {
+        const url = window.location.pathname;
+        window.history.replaceState(null, document.title, url);
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  // createClient보다 먼저 표시해 두어야 PKCE 세션 교환 전에 재설정 모드로 진입함
+  if (detectPasswordRecoveryFromUrl()) {
+    markPasswordRecovery(true);
+  }
+
   const supabaseClient =
     window.supabase &&
     typeof window.supabase.createClient === 'function' &&
     SUPABASE_URL.indexOf('http') === 0 &&
     SUPABASE_PUBLISHABLE_KEY.indexOf('여기에_') !== 0
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: {
+            detectSessionInUrl: true,
+            flowType: 'pkce',
+            persistSession: true,
+            autoRefreshToken: true
+          }
+        })
       : null;
+
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || detectPasswordRecoveryFromUrl()) {
+        markPasswordRecovery(true);
+      }
+      if (event === 'SIGNED_OUT') {
+        markPasswordRecovery(false);
+      }
+    });
+  }
   const UNIVERSITY_NAMES = Array.from(new Set(`
 가톨릭대(성신)
 가톨릭대(성의)
@@ -2939,38 +3004,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   let isAuthenticated = false;
   let currentProfile = null;
   let authBusy = false;
-  let isPasswordRecovery = false;
-
-  function detectPasswordRecoveryFromUrl() {
-    const hash = String(window.location.hash || '');
-    const search = String(window.location.search || '');
-    return /type=recovery/i.test(hash + '&' + search) || /type%3Drecovery/i.test(hash + '&' + search);
-  }
-
-  function markPasswordRecovery(active) {
-    isPasswordRecovery = !!active;
-    try {
-      if (active) sessionStorage.setItem('cab-password-recovery', '1');
-      else sessionStorage.removeItem('cab-password-recovery');
-    } catch (_) { /* ignore */ }
-  }
-
-  function isPasswordRecoveryActive() {
-    if (isPasswordRecovery || detectPasswordRecoveryFromUrl()) return true;
-    try {
-      return sessionStorage.getItem('cab-password-recovery') === '1';
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function clearAuthRedirectHash() {
-    try {
-      if (window.location.hash && window.history && window.history.replaceState) {
-        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-      }
-    } catch (_) { /* ignore */ }
-  }
 
   /** Luxurious gold padlock SVG (unique ids per slot) */
   function lockSvg(uid) {
@@ -3425,6 +3458,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function unlockApp(profile, fallbackName) {
+    if (isPasswordRecoveryActive()) {
+      showResetPanel();
+      return;
+    }
     const gate = $('#loginGate');
     const startActions = $('#homeStartActions');
     const hero = document.querySelector('.home-hero');
@@ -3591,8 +3628,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         throw new Error('가입한 이메일을 입력한 뒤 비밀번호 찾기를 눌러 주세요.');
       }
       setAuthBusy(true);
+      try { sessionStorage.setItem('cab-password-recovery-pending', '1'); } catch (_) { /* ignore */ }
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: AUTH_REDIRECT_URL
+        redirectTo: AUTH_RECOVERY_REDIRECT_URL
       });
       if (error) throw error;
       showAuthMessage('비밀번호 재설정 메일을 보냈습니다. 이메일의 링크를 확인해 주세요.', false);
@@ -3666,16 +3704,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       lockApp();
       return;
     }
-    if (detectPasswordRecoveryFromUrl() || isPasswordRecoveryActive()) {
+    if (isPasswordRecoveryActive()) {
       markPasswordRecovery(true);
     }
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || detectPasswordRecoveryFromUrl()) {
-        markPasswordRecovery(true);
-      }
-      if (event === 'SIGNED_OUT') {
-        markPasswordRecovery(false);
-      }
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
       updateMemberScreen(session);
     });
     const { data } = await supabaseClient.auth.getSession();
