@@ -1511,7 +1511,34 @@ body.auth-locked .topbar-actions {
 }
 .auth-forgot:hover { color: #0A0B0E; }
 .auth-login[hidden],
+.auth-signup[hidden],
 .auth-reset[hidden] { display: none; }
+.auth-role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.auth-role-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid #E2E4E9;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3A3D44;
+}
+.auth-role-option:has(input:checked) {
+  border-color: #0099FF;
+  background: #F3F8FF;
+  box-shadow: 0 0 0 4px rgba(0,153,255,0.12);
+}
+.auth-role-option input { margin: 0; }
+.auth-actions.single { grid-template-columns: 1fr; }
 .member-role-badge {
   display: none;
   margin: 0 0 16px;
@@ -2479,29 +2506,63 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           </div>
           <div class="auth-login" id="authLogin">
             <h2 id="loginTitle">회원 로그인</h2>
-            <p class="login-desc">회원가입 후 이메일 인증을 완료하면 로그인할 수 있습니다.</p>
-            <label class="auth-field" for="authName">
-              <span>성명</span>
-              <input id="authName" type="text" placeholder="성명을 입력해 주세요" autocomplete="name" />
+            <p class="login-desc">이메일과 비밀번호로 로그인하세요.</p>
+            <label class="auth-field" for="loginEmail">
+              <span>이메일 (아이디)</span>
+              <input id="loginEmail" type="email" placeholder="example@email.com" autocomplete="username" />
             </label>
-            <label class="auth-field" for="authSchool">
-              <span>소속 학교</span>
-              <input id="authSchool" type="text" placeholder="학교명을 입력해 주세요" autocomplete="organization" />
-            </label>
-            <label class="auth-field" for="authEmail">
-              <span>이메일</span>
-              <input id="authEmail" type="email" placeholder="example@email.com" autocomplete="email" />
-            </label>
-            <label class="auth-field" for="authPassword">
+            <label class="auth-field" for="loginPassword">
               <span>비밀번호</span>
-              <input id="authPassword" type="password" placeholder="8자 이상 입력" autocomplete="current-password" />
+              <input id="loginPassword" type="password" placeholder="비밀번호 입력" autocomplete="current-password" />
             </label>
             <p class="auth-message" id="authMessage" role="alert"></p>
             <div class="auth-actions">
               <button type="button" class="auth-submit" id="btnLogin">로그인</button>
-              <button type="button" class="auth-secondary" id="btnSignup">회원가입</button>
+              <button type="button" class="auth-secondary" id="btnShowSignup">회원가입</button>
             </div>
             <button type="button" class="auth-forgot" id="btnForgotPassword">비밀번호 찾기</button>
+          </div>
+          <div class="auth-signup" id="authSignup" hidden>
+            <h2>회원가입</h2>
+            <p class="login-desc">아래 정보를 입력한 뒤 가입해 주세요.</p>
+            <label class="auth-field" for="signupName">
+              <span>성명</span>
+              <input id="signupName" type="text" placeholder="성명을 입력해 주세요" autocomplete="name" />
+            </label>
+            <label class="auth-field" for="signupSchool">
+              <span>소속 학교</span>
+              <input id="signupSchool" type="text" placeholder="학교명을 입력해 주세요" autocomplete="organization" />
+            </label>
+            <div class="auth-field">
+              <span>학생 / 교사 여부</span>
+              <div class="auth-role-options" role="radiogroup" aria-label="회원 구분">
+                <label class="auth-role-option">
+                  <input type="radio" name="signupRole" value="student" checked />
+                  <span>학생</span>
+                </label>
+                <label class="auth-role-option">
+                  <input type="radio" name="signupRole" value="teacher" />
+                  <span>교사</span>
+                </label>
+              </div>
+            </div>
+            <label class="auth-field" for="signupEmail">
+              <span>이메일</span>
+              <input id="signupEmail" type="email" placeholder="example@email.com" autocomplete="email" />
+            </label>
+            <label class="auth-field" for="signupPassword">
+              <span>비밀번호</span>
+              <input id="signupPassword" type="password" placeholder="8자 이상 입력" autocomplete="new-password" />
+            </label>
+            <label class="auth-field" for="signupPasswordConfirm">
+              <span>비밀번호 확인</span>
+              <input id="signupPasswordConfirm" type="password" placeholder="비밀번호를 다시 입력" autocomplete="new-password" />
+            </label>
+            <p class="auth-message" id="signupMessage" role="alert"></p>
+            <div class="auth-actions">
+              <button type="button" class="auth-submit" id="btnSignup">가입하기</button>
+              <button type="button" class="auth-secondary" id="btnShowLogin">로그인으로</button>
+            </div>
           </div>
           <div class="auth-reset" id="authReset" hidden>
             <h2>새 비밀번호 설정</h2>
@@ -3372,7 +3433,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   function setAuthBusy(busy) {
     authBusy = !!busy;
-    ['btnLogin', 'btnSignup', 'btnForgotPassword', 'btnSaveNewPassword', 'btnCancelReset'].forEach((id) => {
+    ['btnLogin', 'btnSignup', 'btnShowSignup', 'btnShowLogin', 'btnForgotPassword', 'btnSaveNewPassword', 'btnCancelReset'].forEach((id) => {
       const btn = $('#' + id);
       if (btn) btn.disabled = authBusy;
     });
@@ -3385,16 +3446,48 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     el.classList.toggle('is-error', !!isError);
   }
 
+  function showSignupMessage(text, isError) {
+    const el = $('#signupMessage');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('is-error', !!isError);
+  }
+
   function showLoginPanel() {
     const login = $('#authLogin');
+    const signup = $('#authSignup');
     const reset = $('#authReset');
     if (login) login.hidden = false;
+    if (signup) signup.hidden = true;
     if (reset) reset.hidden = true;
+    showAuthMessage('');
+    showSignupMessage('');
     showResetMessage('');
+    setTimeout(() => {
+      const email = $('#loginEmail');
+      if (email) email.focus();
+    }, 50);
+  }
+
+  function showSignupPanel() {
+    const login = $('#authLogin');
+    const signup = $('#authSignup');
+    const reset = $('#authReset');
+    if (login) login.hidden = true;
+    if (signup) signup.hidden = false;
+    if (reset) reset.hidden = true;
+    showAuthMessage('');
+    showSignupMessage('');
+    showResetMessage('');
+    setTimeout(() => {
+      const name = $('#signupName');
+      if (name) name.focus();
+    }, 50);
   }
 
   function showResetPanel() {
     const login = $('#authLogin');
+    const signup = $('#authSignup');
     const reset = $('#authReset');
     const gate = $('#loginGate');
     const startActions = $('#homeStartActions');
@@ -3409,6 +3502,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (dataTools) dataTools.hidden = true;
     if (chip) chip.hidden = true;
     if (login) login.hidden = true;
+    if (signup) signup.hidden = true;
     if (reset) reset.hidden = false;
     if ($('#resetPassword')) $('#resetPassword').value = '';
     if ($('#resetPasswordConfirm')) $('#resetPasswordConfirm').value = '';
@@ -3420,12 +3514,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     }, 80);
   }
 
-  function getAuthFormData() {
+  function getLoginFormData() {
     return {
-      name: ($('#authName') && $('#authName').value.trim()) || '',
-      school: ($('#authSchool') && $('#authSchool').value.trim()) || '',
-      email: ($('#authEmail') && $('#authEmail').value.trim()) || '',
-      password: ($('#authPassword') && $('#authPassword').value) || ''
+      email: ($('#loginEmail') && $('#loginEmail').value.trim()) || '',
+      password: ($('#loginPassword') && $('#loginPassword').value) || ''
+    };
+  }
+
+  function getSignupFormData() {
+    const roleInput = document.querySelector('input[name="signupRole"]:checked');
+    return {
+      name: ($('#signupName') && $('#signupName').value.trim()) || '',
+      school: ($('#signupSchool') && $('#signupSchool').value.trim()) || '',
+      role: (roleInput && roleInput.value === 'teacher') ? 'teacher' : 'student',
+      email: ($('#signupEmail') && $('#signupEmail').value.trim()) || '',
+      password: ($('#signupPassword') && $('#signupPassword').value) || '',
+      passwordConfirm: ($('#signupPasswordConfirm') && $('#signupPasswordConfirm').value) || ''
     };
   }
 
@@ -3522,8 +3626,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (roleText) roleText.textContent = '학생';
     showAuthMessage('');
     setPage('home');
+    showLoginPanel();
     setTimeout(() => {
-      const email = $('#authEmail');
+      const email = $('#loginEmail');
       if (email) email.focus();
     }, 80);
   }
@@ -3569,29 +3674,37 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   async function signUp() {
     if (authBusy) return;
-    showAuthMessage('');
+    showSignupMessage('');
     try {
       ensureSupabaseReady();
-      const { name, school, email, password } = getAuthFormData();
-      if (!name || !school || !email || !password) {
-        throw new Error('성명, 학교, 이메일, 비밀번호를 모두 입력해 주세요.');
+      const { name, school, role, email, password, passwordConfirm } = getSignupFormData();
+      if (!name || !school || !email || !password || !passwordConfirm) {
+        throw new Error('성명, 학교, 이메일, 비밀번호, 비밀번호 확인을 모두 입력해 주세요.');
+      }
+      if (role !== 'student' && role !== 'teacher') {
+        throw new Error('학생 또는 교사를 선택해 주세요.');
       }
       if (password.length < 8) {
         throw new Error('비밀번호는 8자 이상 입력해 주세요.');
+      }
+      if (password !== passwordConfirm) {
+        throw new Error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       }
       setAuthBusy(true);
       const { error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
-          data: { name, school },
+          data: { name, school, role },
           emailRedirectTo: AUTH_REDIRECT_URL
         }
       });
       if (error) throw error;
-      showAuthMessage('회원가입이 완료되었습니다. 인증 이메일을 확인해 주세요.', false);
+      showSignupMessage('회원가입이 완료되었습니다. 인증 이메일을 확인한 뒤 로그인해 주세요.', false);
+      if ($('#loginEmail')) $('#loginEmail').value = email;
+      if ($('#loginPassword')) $('#loginPassword').value = '';
     } catch (error) {
-      showAuthMessage((error && error.message) || '회원가입에 실패했습니다.', true);
+      showSignupMessage((error && error.message) || '회원가입에 실패했습니다.', true);
     } finally {
       setAuthBusy(false);
     }
@@ -3620,7 +3733,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     showAuthMessage('');
     try {
       ensureSupabaseReady();
-      const { email, password } = getAuthFormData();
+      const { email, password } = getLoginFormData();
       if (!email || !password) {
         throw new Error('이메일과 비밀번호를 입력해 주세요.');
       }
@@ -3639,7 +3752,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     showAuthMessage('');
     try {
       ensureSupabaseReady();
-      const { email } = getAuthFormData();
+      const { email } = getLoginFormData();
       if (!email) {
         throw new Error('가입한 이메일을 입력한 뒤 비밀번호 찾기를 눌러 주세요.');
       }
@@ -7450,20 +7563,33 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   $('#btnOpenSusi').addEventListener('click', () => setPage('susi'));
   $('#btnOpenJeongsi').addEventListener('click', () => setPage('jeongsi'));
   $('#btnLogin').addEventListener('click', signIn);
+  $('#btnShowSignup').addEventListener('click', showSignupPanel);
+  $('#btnShowLogin').addEventListener('click', showLoginPanel);
   $('#btnSignup').addEventListener('click', signUp);
   $('#btnForgotPassword').addEventListener('click', requestPasswordReset);
   $('#btnSaveNewPassword').addEventListener('click', saveRecoveredPassword);
   $('#btnCancelReset').addEventListener('click', cancelPasswordReset);
-  ['authName', 'authSchool', 'authEmail', 'authPassword'].forEach((id) => {
+  ['loginEmail', 'loginPassword'].forEach((id) => {
     const el = $('#' + id);
     if (!el) return;
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      if (id === 'authName') $('#authSchool').focus();
-      else if (id === 'authSchool') $('#authEmail').focus();
-      else if (id === 'authEmail') $('#authPassword').focus();
+      if (id === 'loginEmail') $('#loginPassword').focus();
       else signIn();
+    });
+  });
+  ['signupName', 'signupSchool', 'signupEmail', 'signupPassword', 'signupPasswordConfirm'].forEach((id) => {
+    const el = $('#' + id);
+    if (!el) return;
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (id === 'signupName') $('#signupSchool').focus();
+      else if (id === 'signupSchool') $('#signupEmail').focus();
+      else if (id === 'signupEmail') $('#signupPassword').focus();
+      else if (id === 'signupPassword') $('#signupPasswordConfirm').focus();
+      else signUp();
     });
   });
   ['resetPassword', 'resetPasswordConfirm'].forEach((id) => {
