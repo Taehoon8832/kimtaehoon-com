@@ -1513,32 +1513,7 @@ body.auth-locked .topbar-actions {
 .auth-login[hidden],
 .auth-signup[hidden],
 .auth-reset[hidden] { display: none; }
-.auth-role-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.auth-role-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1.5px solid #E2E4E9;
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  color: #3A3D44;
-}
-.auth-role-option:has(input:checked) {
-  border-color: #0099FF;
-  background: #F3F8FF;
-  box-shadow: 0 0 0 4px rgba(0,153,255,0.12);
-}
-.auth-role-option input { margin: 0; }
-.auth-actions.single { grid-template-columns: 1fr; }
+
 .member-role-badge {
   display: none;
   margin: 0 0 16px;
@@ -2533,19 +2508,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
               <span>소속 학교</span>
               <input id="signupSchool" type="text" placeholder="학교명을 입력해 주세요" autocomplete="organization" />
             </label>
-            <div class="auth-field">
-              <span>학생 / 교사 여부</span>
-              <div class="auth-role-options" role="radiogroup" aria-label="회원 구분">
-                <label class="auth-role-option">
-                  <input type="radio" name="signupRole" value="student" checked />
-                  <span>학생</span>
-                </label>
-                <label class="auth-role-option">
-                  <input type="radio" name="signupRole" value="teacher" />
-                  <span>교사</span>
-                </label>
-              </div>
-            </div>
             <label class="auth-field" for="signupEmail">
               <span>이메일</span>
               <input id="signupEmail" type="email" placeholder="example@email.com" autocomplete="email" />
@@ -3522,11 +3484,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function getSignupFormData() {
-    const roleInput = document.querySelector('input[name="signupRole"]:checked');
     return {
       name: ($('#signupName') && $('#signupName').value.trim()) || '',
       school: ($('#signupSchool') && $('#signupSchool').value.trim()) || '',
-      role: (roleInput && roleInput.value === 'teacher') ? 'teacher' : 'student',
+      role: 'student',
       email: ($('#signupEmail') && $('#signupEmail').value.trim()) || '',
       password: ($('#signupPassword') && $('#signupPassword').value) || '',
       passwordConfirm: ($('#signupPasswordConfirm') && $('#signupPasswordConfirm').value) || ''
@@ -3553,11 +3514,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     chip.hidden = false;
   }
 
+  function normalizeRole(role) {
+    let roleKey = String(role || '').trim().toLowerCase();
+    if (roleKey === 'member') return 'student';
+    if (roleKey === 'admin' || roleKey === 'taecher') return 'teacher'; // taecher 오타 호환
+    if (roleKey === 'teacher' || roleKey === 'student') return roleKey;
+    return 'student';
+  }
+
   function updateRoleUi(role) {
-    // 예전 member/admin 데이터 호환
-    let roleKey = role;
-    if (roleKey === 'member' || roleKey === 'admin') roleKey = roleKey === 'admin' ? 'teacher' : 'student';
-    if (!ROLE_LABELS[roleKey]) roleKey = 'student';
+    const roleKey = normalizeRole(role);
     document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
     document.body.classList.add('role-' + roleKey);
     const roleText = $('#roleText');
@@ -3593,7 +3559,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (hero) hero.classList.add('is-authenticated');
     const dataTools = $('#dataTools');
     if (dataTools) dataTools.hidden = false;
-    updateRoleUi(currentProfile.role || 'student');
+    currentProfile.role = normalizeRole(currentProfile.role || 'student');
+    updateRoleUi(currentProfile.role);
     const greetName = currentProfile.name || fallbackName || '회원';
     if (welcome) welcome.textContent = greetName + '님, 반갑습니다. 연도별 수시·정시 자료와 학생별 지원 현황을 관리하세요.';
     updateUserChip(fallbackName || greetName);
@@ -3680,9 +3647,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       const { name, school, role, email, password, passwordConfirm } = getSignupFormData();
       if (!name || !school || !email || !password || !passwordConfirm) {
         throw new Error('성명, 학교, 이메일, 비밀번호, 비밀번호 확인을 모두 입력해 주세요.');
-      }
-      if (role !== 'student' && role !== 'teacher') {
-        throw new Error('학생 또는 교사를 선택해 주세요.');
       }
       if (password.length < 8) {
         throw new Error('비밀번호는 8자 이상 입력해 주세요.');
