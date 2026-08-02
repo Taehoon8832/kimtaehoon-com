@@ -2941,6 +2941,37 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   let authBusy = false;
   let isPasswordRecovery = false;
 
+  function detectPasswordRecoveryFromUrl() {
+    const hash = String(window.location.hash || '');
+    const search = String(window.location.search || '');
+    return /type=recovery/i.test(hash + '&' + search) || /type%3Drecovery/i.test(hash + '&' + search);
+  }
+
+  function markPasswordRecovery(active) {
+    isPasswordRecovery = !!active;
+    try {
+      if (active) sessionStorage.setItem('cab-password-recovery', '1');
+      else sessionStorage.removeItem('cab-password-recovery');
+    } catch (_) { /* ignore */ }
+  }
+
+  function isPasswordRecoveryActive() {
+    if (isPasswordRecovery || detectPasswordRecoveryFromUrl()) return true;
+    try {
+      return sessionStorage.getItem('cab-password-recovery') === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function clearAuthRedirectHash() {
+    try {
+      if (window.location.hash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   /** Luxurious gold padlock SVG (unique ids per slot) */
   function lockSvg(uid) {
     const id = 'lk' + uid;
@@ -3457,13 +3488,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   async function updateMemberScreen(session) {
     const user = session && session.user;
     if (!user) {
-      isPasswordRecovery = false;
       showLoginPanel();
       lockApp();
       return;
     }
-    if (isPasswordRecovery) {
+    if (isPasswordRecoveryActive()) {
+      markPasswordRecovery(true);
       showResetPanel();
+      clearAuthRedirectHash();
       return;
     }
     try {
@@ -3512,6 +3544,24 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     }
   }
 
+  function getSignInErrorMessage(error) {
+    const msg = String((error && error.message) || '');
+    const code = String((error && error.code) || '');
+    const lower = msg.toLowerCase();
+    if (msg.indexOf('SUPABASE_') !== -1 || msg.indexOf('라이브러리') !== -1) return msg;
+    if (
+      code === 'email_not_confirmed' ||
+      lower.indexOf('email not confirmed') !== -1 ||
+      lower.indexOf('not confirmed') !== -1
+    ) {
+      return '이메일 인증이 아직 끝나지 않았습니다. 메일함(스팸함 포함)의 인증 링크를 눌러 주세요.';
+    }
+    if (lower.indexOf('invalid login credentials') !== -1 || lower.indexOf('invalid_credentials') !== -1) {
+      return '이메일 또는 비밀번호가 올바르지 않습니다. 회원가입에 쓴 비밀번호와 같은지 확인해 주세요.';
+    }
+    return msg || '로그인에 실패했습니다.';
+  }
+
   async function signIn() {
     if (authBusy) return;
     showAuthMessage('');
@@ -3525,12 +3575,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (error) {
-      const msg = (error && error.message) || '';
-      if (msg.indexOf('SUPABASE_') !== -1 || msg.indexOf('라이브러리') !== -1) {
-        showAuthMessage(msg, true);
-      } else {
-        showAuthMessage('이메일 또는 비밀번호를 확인해 주세요.', true);
-      }
+      showAuthMessage(getSignInErrorMessage(error), true);
     } finally {
       setAuthBusy(false);
     }
@@ -3574,7 +3619,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       setAuthBusy(true);
       const { error } = await supabaseClient.auth.updateUser({ password });
       if (error) throw error;
-      isPasswordRecovery = false;
+      markPasswordRecovery(false);
+      clearAuthRedirectHash();
       showResetMessage('비밀번호가 변경되었습니다. 바로 이용할 수 있습니다.', false);
       const { data } = await supabaseClient.auth.getSession();
       await updateMemberScreen(data.session);
@@ -3587,7 +3633,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   async function cancelPasswordReset() {
-    isPasswordRecovery = false;
+    markPasswordRecovery(false);
+    clearAuthRedirectHash();
     try {
       if (supabaseClient) await supabaseClient.auth.signOut();
       else {
@@ -3619,14 +3666,20 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       lockApp();
       return;
     }
-    const { data } = await supabaseClient.auth.getSession();
-    await updateMemberScreen(data.session);
+    if (detectPasswordRecoveryFromUrl() || isPasswordRecoveryActive()) {
+      markPasswordRecovery(true);
+    }
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        isPasswordRecovery = true;
+      if (event === 'PASSWORD_RECOVERY' || detectPasswordRecoveryFromUrl()) {
+        markPasswordRecovery(true);
+      }
+      if (event === 'SIGNED_OUT') {
+        markPasswordRecovery(false);
       }
       updateMemberScreen(session);
     });
+    const { data } = await supabaseClient.auth.getSession();
+    await updateMemberScreen(data.session);
   }
 
   function toast(msg, type) {
