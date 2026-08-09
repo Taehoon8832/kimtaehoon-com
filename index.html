@@ -13621,17 +13621,93 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
     ]);
   }
 
-  function downloadTemplate() {
-    const count = Math.max(1, Math.min(MAX_SLOTS_CAP, MAX));
-    const isJeongsi = currentTrack === 'jeongsi';
-    const bytes = isJeongsi ? buildJeongsiUploadXlsxBytes(count) : buildSusiUploadXlsxBytes(count);
-    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  function buildSusiTemplateAOA(count) {
+    const headers = ['연번', '학번', '이름', '대학', '전형', '전형명', '학과', '1단계 발표일', '면접(논술)일', '최종합 발표일', '수험번호', '합불', '진로 희망', '내신 등급'];
+    const appRows = getDefaultAppRows('susi');
+    const rows = [];
+    const n = Math.max(1, Number(count) || 1);
+    for (let i = 1; i <= n; i++) {
+      const hakbun = String(30000 + i);
+      rows.push(headers.slice());
+      for (let a = 1; a <= appRows; a++) {
+        rows.push([a, hakbun, '홍길동', '', '', '', '', '', '', '', '', '', '', '']);
+      }
+    }
+    return rows;
+  }
+
+  function buildJeongsiTemplateAppsAOA(count) {
+    const headers = ['연번', '학번', '이름', '군', '대학명', '학과', '수험번호', '1단계 발표일', '면접일', '최종합 발표일', '합불'];
+    const appRows = getDefaultAppRows('jeongsi');
+    const rows = [];
+    const n = Math.max(1, Number(count) || 1);
+    for (let i = 1; i <= n; i++) {
+      const hakbun = String(30000 + i);
+      rows.push(headers.slice());
+      for (let a = 1; a <= appRows; a++) {
+        const gun = (DEFAULT_JEONGSI_GUNS && DEFAULT_JEONGSI_GUNS[a - 1]) || '';
+        rows.push([a, hakbun, '홍길동', gun, '', '', '', '', '', '', '']);
+      }
+    }
+    return rows;
+  }
+
+  function buildJeongsiTemplateMockAOA(count) {
+    const labels = typeof normalizeMockSubjectLabels === 'function'
+      ? normalizeMockSubjectLabels(DEFAULT_MOCK_SUBJECT_LABELS)
+      : Object.assign({}, DEFAULT_MOCK_SUBJECT_LABELS);
+    const rows = [];
+    const n = Math.max(1, Number(count) || 1);
+    for (let i = 1; i <= n; i++) {
+      const hakbun = String(30000 + i);
+      rows.push([
+        hakbun, labels.kor, '', labels.math, '', labels.eng, labels.hist,
+        labels.inq1, '', labels.inq2, '', labels.lang2
+      ]);
+      rows.push([
+        '홍길동', '백분위', '등급', '백분위', '등급', '등급', '등급',
+        '백분위', '등급', '백분위', '등급', '등급'
+      ]);
+      ['수능', '9월', '6월', '3월'].forEach((lab) => {
+        rows.push([lab, '', '', '', '', '', '', '', '', '', '', '']);
+      });
+    }
+    return rows;
+  }
+
+  function downloadXlsxSafely(wb, fileName) {
+    // SheetJS ArrayBuffer → Blob 직접 저장 (Excel 복구 오류 방지)
+    const safeName = String(fileName || 'upload-template.xlsx').replace(/[\\/:*?"<>|]/g, '_');
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = (isJeongsi ? '정시_업로드양식_' : '수시_업로드양식_') + count + '명.xlsx';
+    a.download = safeName;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function downloadTemplate() {
+    ensureXlsx();
+    const count = Math.max(1, Math.min(MAX_SLOTS_CAP, MAX));
+    const isJeongsi = currentTrack === 'jeongsi';
+    const wb = XLSX.utils.book_new();
+    if (isJeongsi) {
+      const wsApps = XLSX.utils.aoa_to_sheet(buildJeongsiTemplateAppsAOA(count));
+      const wsMock = XLSX.utils.aoa_to_sheet(buildJeongsiTemplateMockAOA(count));
+      XLSX.utils.book_append_sheet(wb, wsApps, '업로드 양식(정시)');
+      XLSX.utils.book_append_sheet(wb, wsMock, '업로드 양식(모의고사)');
+    } else {
+      const ws = XLSX.utils.aoa_to_sheet(buildSusiTemplateAOA(count));
+      XLSX.utils.book_append_sheet(wb, ws, '업로드양식');
+    }
+    const fileName = (isJeongsi ? '정시_업로드양식_' : '수시_업로드양식_') + count + '명.xlsx';
+    downloadXlsxSafely(wb, fileName);
     toast((isJeongsi ? '정시' : '수시') + ' 업로드 양식 ' + count + '명(학번 30001～' + String(30000 + count) + ')을 다운로드했습니다', 'ok');
   }
 
@@ -13901,7 +13977,7 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
       String(stamp.getMonth() + 1).padStart(2, '0') +
       String(stamp.getDate()).padStart(2, '0');
     const fileName = (isJeongsi ? '정시_' : '수시_') + school + '_입력데이터_' + list.length + '명_' + ymd + '.xlsx';
-    XLSX.writeFile(wb, fileName.replace(/[\\/:*?"<>|]/g, '_'));
+    downloadXlsxSafely(wb, fileName);
     toast('엑셀 파일을 저장했습니다 · 개인정보 보안에 유의해 주세요', 'ok');
     closeXlsxPreviewModal();
   }
