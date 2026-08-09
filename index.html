@@ -2312,24 +2312,28 @@ body[data-page="susi"] .card-table .cell[data-field="finalDate"]:hover {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 10px;
+  font-size: 12px;
 }
 .card-table th {
   background: #fff;
   font-weight: 700;
   color: #111;
-  padding: 4px 1px;
+  padding: 6px 2px;
   border: 1px solid #111;
   white-space: nowrap;
-  font-size: 8px;
-  letter-spacing: -0.04em;
+  font-size: 12px;
+  letter-spacing: -0.02em;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.25;
   overflow: hidden;
 }
 body[data-page="susi"] .card-table th {
-  font-size: 7px;
-  padding: 5px 0;
+  font-size: 12px;
+  padding: 6px 1px;
+}
+body[data-page="jeongsi"] .card-table th {
+  font-size: 12px;
+  padding: 6px 1px;
 }
 .card-table td {
   border: 1px solid #111;
@@ -5943,8 +5947,10 @@ body[data-page="album"] .sticky-top {
 }
 @media (max-width: 960px) {
   .student-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .card-table { font-size: 9px; }
-  body[data-page="susi"] .card-table th { font-size: 6.5px; }
+  .card-table { font-size: 11px; }
+  .card-table th,
+  body[data-page="susi"] .card-table th,
+  body[data-page="jeongsi"] .card-table th { font-size: 11px; }
   .home-hero { grid-template-columns: 1fr; text-align: center; }
   .home-copy { padding-left: 0; }
   .home-hero p { margin-left: 0; margin-right: auto; text-align: left; }
@@ -5987,8 +5993,10 @@ body[data-page="album"] .sticky-top {
   .topbar-actions { width: 100%; margin-left: 0; }
   .topbar-actions .btn,
   .topbar-actions .pwd-change-btn { flex: 1; }
-  .card-table th { font-size: 8px; padding: 4px 1px; }
-  .cell { font-size: 9px; padding: 2px 1px; min-height: 20px; }
+  .card-table th,
+  body[data-page="susi"] .card-table th,
+  body[data-page="jeongsi"] .card-table th { font-size: 10px; padding: 5px 1px; }
+  .cell { font-size: 11px; padding: 3px 2px; min-height: 22px; }
 }
 
 @media print {
