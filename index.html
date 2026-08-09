@@ -2437,23 +2437,25 @@ body[data-page="jeongsi"] .card-mock-score { display: block; }
   min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 7.5px;
+  font-size: 12px;
   background: #fff;
 }
 .card-mock-table th,
 .card-mock-table td {
-  border: 1px solid #C5C9D2;
+  border: 1px solid #B8BEC8;
   padding: 0;
   text-align: center;
   vertical-align: middle;
   overflow: hidden;
 }
 .card-mock-table thead th {
-  background: #F0F1F4;
-  color: #222;
+  background: #EEF1F4;
+  color: #1A1A1A;
   font-weight: 800;
-  padding: 2px 0;
-  line-height: 1.1;
+  font-size: 12px;
+  padding: 5px 2px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   word-break: keep-all;
 }
 .card-mock-table thead th[data-mock-subject] {
@@ -2465,16 +2467,18 @@ body[data-page="jeongsi"] .card-mock-score { display: block; }
   box-shadow: inset 0 0 0 1px #0095F6;
 }
 .card-mock-table .subhead th {
-  font-size: 6.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 1px 0;
+  color: #2F343A;
+  background: #F3F5F7;
+  padding: 4px 0;
 }
 .card-mock-table .mock-row-label {
   width: 7.5%;
-  background: #F7F8FB;
-  color: #222;
+  background: #F5F6F8;
+  color: #1A1A1A;
   font-weight: 800;
-  font-size: 7.5px;
+  font-size: 12px;
 }
 .card-mock-table .mock-row-label[contenteditable="true"] {
   cursor: text;
@@ -2489,8 +2493,8 @@ body[data-page="jeongsi"] .card-mock-score { display: block; }
   color: #C62828;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
-  font-size: 7.5px;
-  padding: 1px 1px;
+  font-size: 12px;
+  padding: 2px 1px;
 }
 .card-mock-table td.mock-calc[data-mock-calc="flat2"],
 .card-mock-table td.mock-calc[data-mock-calc="flat1"] {
@@ -2512,20 +2516,20 @@ body[data-page="jeongsi"] .card-mock-score { display: block; }
 .card-mock-table input.mock-cell-manual::placeholder {
   color: #B0B5BD;
   font-weight: 500;
-  font-size: 6.5px;
+  font-size: 10px;
 }
 .card-mock-table input {
   display: block;
   width: 100%;
   min-width: 0;
-  min-height: 16px;
-  padding: 1px 0;
+  min-height: 22px;
+  padding: 2px 0;
   border: 0;
   background: transparent;
   color: #111;
   font: inherit;
   font-family: inherit;
-  font-size: 7.5px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
   outline: none;
@@ -7214,14 +7218,15 @@ body[data-page="jeongsi-teacher"] .sheets-col-timeline .sheets-tl-card {
 .sheets-tl-meta > div:nth-child(4n) { border-right: 0; }
 .sheets-tl-meta .k {
   display: block;
-  font: 600 10px/1.2 var(--sheets-font);
-  color: var(--sheets-muted);
-  margin-bottom: 2px;
+  font: 700 11px/1.25 var(--sheets-font);
+  color: #5F6368;
+  margin-bottom: 3px;
 }
 .sheets-tl-meta .v {
   display: block;
   color: var(--sheets-ink);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7311,13 +7316,13 @@ body[data-page="jeongsi-teacher"] .sheets-col-timeline .sheets-tl-card {
   min-width: 640px;
   border-collapse: collapse;
   table-layout: fixed;
-  font: 400 10px/1.2 Roboto, Arial, 'Noto Sans KR', sans-serif;
+  font: 600 12px/1.25 'Noto Sans KR', Pretendard, Roboto, Arial, sans-serif;
   color: var(--sheets-ink);
 }
 .sheets-mock-mini th,
 .sheets-mock-mini td {
-  height: var(--sheets-cell-h);
-  padding: 0 3px;
+  height: 28px;
+  padding: 3px 4px;
   border-right: 1px solid var(--sheets-border);
   border-bottom: 1px solid var(--sheets-border);
   text-align: center;
@@ -7328,24 +7333,31 @@ body[data-page="jeongsi-teacher"] .sheets-col-timeline .sheets-tl-card {
   box-sizing: border-box;
 }
 .sheets-mock-mini th {
-  background: var(--sheets-header);
-  font-weight: 500;
-  color: var(--sheets-muted);
-  font-size: 9px;
+  background: #EEF1F4;
+  font-weight: 800;
+  color: #202124;
+  font-size: 12px;
+  letter-spacing: -0.02em;
 }
-.sheets-mock-mini th.is-sub { font-size: 8px; color: #9AA0A6; }
+.sheets-mock-mini th.is-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3C4043;
+  background: #F3F5F7;
+}
 .sheets-mock-mini td.is-label {
   text-align: left;
-  padding-left: 6px;
-  font-weight: 500;
-  background: var(--sheets-header);
-  color: var(--sheets-ink-2);
+  padding-left: 8px;
+  font-weight: 700;
+  background: #F5F6F8;
+  color: #202124;
+  font-size: 12px;
 }
-.sheets-mock-mini td.is-num { text-align: right; padding-right: 4px; }
+.sheets-mock-mini td.is-num { text-align: right; padding-right: 6px; font-weight: 600; }
 .sheets-mock-mini td.is-best {
   color: var(--sheets-green-700);
-  font-weight: 500;
-  background: rgba(15, 157, 88, 0.06);
+  font-weight: 700;
+  background: rgba(15, 157, 88, 0.08);
 }
 .sheets-mock-wrap {
   overflow-x: auto;
@@ -7481,8 +7493,10 @@ body[data-page="jeongsi-teacher"] .sheets-col-timeline .sheets-tl-card {
   }
   .sheets-mock-mini {
     min-width: 560px;
-    font-size: 9px;
+    font-size: 11px;
   }
+  .sheets-mock-mini th { font-size: 11px; }
+  .sheets-mock-mini th.is-sub { font-size: 10px; }
 }
 
 </style>
