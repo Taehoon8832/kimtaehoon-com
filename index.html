@@ -2949,14 +2949,16 @@ body.auth-locked .topbar-actions {
 .auth-forgot:hover { color: #0A0B0E; }
 .member-role-badge {
   display: none;
-  margin: 10px auto 0;
-  padding: 4px 10px;
+  margin: 14px auto 0;
+  padding: 10px 18px;
   border-radius: 999px;
-  background: #EEF5FF;
-  color: #1A4C9A;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  background: #E8F1FF;
+  border: 1px solid #B7D1F5;
+  color: #0B3A82;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 .home-hero.is-authenticated .member-role-badge { display: inline-block; }
 body.role-student [data-page-target="susi-teacher"],
@@ -7683,7 +7685,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <p id="homeWelcomeText">연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.<br>
           <a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>
         </p>
-        <span class="member-role-badge" id="roleText">학생</span>
+        <span class="member-role-badge" id="roleText">교사</span>
         <div class="home-start-actions" id="homeStartActions" hidden>
           <button type="button" class="home-start" id="btnOpenSusi">수시 관리 시작 →</button>
           <button type="button" class="home-start jeongsi" id="btnOpenJeongsi">정시 관리 시작 →</button>
@@ -9535,7 +9537,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return {
       name: ($('#signupName') && $('#signupName').value.trim()) || '',
       school: ($('#signupSchool') && $('#signupSchool').value.trim()) || '',
-      role: 'student',
+      role: 'teacher',
       email: ($('#signupEmail') && $('#signupEmail').value.trim()) || '',
       password: ($('#signupPassword') && $('#signupPassword').value) || '',
       passwordConfirm: ($('#signupPasswordConfirm') && $('#signupPasswordConfirm').value) || ''
@@ -9559,16 +9561,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   function normalizeRole(role) {
     let roleKey = String(role || '').trim().toLowerCase();
-    if (roleKey === 'member') return 'student';
+    if (roleKey === 'member') return 'teacher'; // 본 시스템은 담임교사 전용
     if (roleKey === 'admin' || roleKey === 'taecher') return 'teacher';
-    if (roleKey === 'teacher' || roleKey === 'student') return roleKey;
-    return 'student';
+    if (roleKey === 'student') return 'teacher'; // 기존 student 값도 교사로 표시
+    if (roleKey === 'teacher') return 'teacher';
+    return 'teacher';
   }
   function updateRoleUi(role) {
     const roleKey = normalizeRole(role);
     document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
     document.body.classList.add('role-' + roleKey);
-    if ($('#roleText')) $('#roleText').textContent = ROLE_LABELS[roleKey] || '학생';
+    if ($('#roleText')) $('#roleText').textContent = ROLE_LABELS[roleKey] || '교사';
     document.querySelectorAll('[data-page-target="susi"], [data-page-target="jeongsi"]').forEach((el) => {
       el.hidden = roleKey !== 'student' && roleKey !== 'teacher';
     });
@@ -9671,7 +9674,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const switching = !isAuthenticated || currentUserId !== nextUserId;
     currentUserId = nextUserId;
     currentUserEmail = String(userEmail || (profile && profile.email) || fallbackName || '').trim();
-    currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'student' };
+    currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'teacher' };
     isAuthenticated = true;
 
     if ($('#loginGate')) $('#loginGate').classList.add('is-hidden');
@@ -9679,7 +9682,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const hero = document.querySelector('.home-hero');
     if (hero) hero.classList.add('is-authenticated');
     if ($('#dataTools')) $('#dataTools').hidden = false;
-    currentProfile.role = normalizeRole(currentProfile.role || 'student');
+    currentProfile.role = normalizeRole(currentProfile.role || 'teacher');
     updateRoleUi(currentProfile.role);
     const greetName = currentProfile.name || fallbackName || '회원';
     if ($('#homeWelcomeText')) {
@@ -9721,7 +9724,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       $('#homeWelcomeText').innerHTML = '담임 계정으로 로그인하면 해당 아이디의 진학 자료만 불러옵니다.<br>' +
         '<a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>';
     }
-    if ($('#roleText')) $('#roleText').textContent = '학생';
+    if ($('#roleText')) $('#roleText').textContent = '교사';
     showAuthMessage('');
     setPage('home');
     showLoginPanel();
@@ -9748,7 +9751,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       await unlockApp({
         name: (user.user_metadata && user.user_metadata.name) || '',
         school: (user.user_metadata && user.user_metadata.school) || '',
-        role: 'student'
+        role: 'teacher'
       }, user.email, user.id, user.email);
     }
   }
