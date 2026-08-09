@@ -8319,8 +8319,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const DAEIP_COPIED_KEY_BASE = 'class-admission-daeip-copied-date';
   const SUPABASE_URL = 'https://lqlysybhyoinwwevrill.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-5g36RwSdOqVBP4eNoySsA_xs3MhViZ';
-  const AUTH_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/';
-  const AUTH_RECOVERY_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/?type=recovery';
+  const AUTH_REDIRECT_URL = 'https://taehoon8837.github.io/kimtaehoon-com/';
+  const AUTH_RECOVERY_REDIRECT_URL = 'https://taehoon8837.github.io/kimtaehoon-com/?type=recovery';
   const ROLE_LABELS = { student: '학생', teacher: '교사' };
   let currentUserId = null;
   let currentUserEmail = '';
@@ -8393,10 +8393,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     } catch (err) {
       console.error(err);
       const msg = String((err && err.message) || '');
-      if (/user_workspaces/i.test(msg) && (/does not exist/i.test(msg) || /Could not find the table/i.test(msg))) {
-        toast('클라우드 저장 테이블이 없습니다. supabase-user-workspaces.sql 을 실행해 주세요.', 'err');
+      const code = String((err && err.code) || '');
+      if (/permission denied|42501/i.test(msg + code)) {
+        toast('클라우드 저장 권한 없음 · SQL로 GRANT 실행 필요', 'err');
+      } else if (/user_workspaces/i.test(msg) && (/does not exist/i.test(msg) || /Could not find the table/i.test(msg) || /PGRST/i.test(code))) {
+        toast('클라우드 테이블 연결 실패 · SQL/스키마 새로고침 필요', 'err');
       } else {
-        toast('클라우드 동기화 실패(이 PC 캐시는 유지됨)', 'err');
+        toast('클라우드 동기화 실패(이 PC 작업 내용은 유지됨)', 'err');
       }
     } finally {
       cloudSaveInFlight = false;
@@ -9635,7 +9638,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       cloud = await pullWorkspaceFromCloud();
     } catch (err) {
       console.error(err);
-      toast('클라우드 불러오기 실패: 이 PC의 계정 캐시를 사용합니다', 'err');
+      const msg = String((err && err.message) || '');
+      const code = String((err && err.code) || '');
+      if (/permission denied|42501/i.test(msg + code)) {
+        toast('클라우드 불러오기 권한 없음 · SQL로 GRANT 실행 필요', 'err');
+      } else {
+        toast('클라우드 불러오기 실패 · 일단 이 PC 저장본으로 계속합니다', 'err');
+      }
     }
     if (token !== workspaceLoadToken || currentUserId !== ownerId) return;
 
