@@ -2764,6 +2764,10 @@ body.auth-locked .topbar-actions {
   text-indent: 0;
 }
 .home-board-link:hover { text-decoration: underline; }
+.home-signup-notice {
+  color: #d32f2f;
+  text-decoration: underline;
+}
 .home-hero p .nowrap { white-space: nowrap; }
 .home-start {
   height: 44px;
@@ -2925,7 +2929,10 @@ body.auth-locked .topbar-actions {
   background: #F0F1F4;
 }
 .auth-submit:disabled,
-.auth-secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .auth-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2962,11 +2969,6 @@ body.auth-locked .topbar-actions {
 body.role-student [data-page-target="susi-teacher"],
 body.role-student [data-page-target="jeongsi-teacher"] {
   display: none !important;
-}
-/* Perf: keep offscreen student cards cheap */
-.student-card {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 280px;
 }
 
 /* Susi teacher dashboard */
@@ -7553,17 +7555,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   window.__ensureLib = function (id) { runPlain(id); };
   var warm = function () {
-    // 로그인·홈 진입을 방해하지 않도록 엑셀 라이브러리는 늦게 예열
-    if (document.body && document.body.classList.contains('auth-locked')) {
-      setTimeout(warm, 4000);
-      return;
-    }
     try { runPlain('lib-xlsx'); } catch (e) {}
   };
   if ('requestIdleCallback' in window) {
-    requestIdleCallback(warm, { timeout: 12000 });
+    requestIdleCallback(warm, { timeout: 2500 });
   } else {
-    setTimeout(warm, 6000);
+    setTimeout(warm, 1200);
   }
 })();
 </script>
@@ -7680,7 +7677,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="home-copy">
         <span class="home-kicker">Classroom Admission Board</span>
         <h1>고3 진학 관리를<br><span>한 곳에서 간편하게</span></h1>
-        <p id="homeWelcomeText">연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.<br>
+        <p id="homeWelcomeText">연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요. <span class="home-signup-notice">현재 테스트 중으로 회원가입 기능을 막아두었습니다.</span> - 김태훈<br>
           <a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>
         </p>
         <span class="member-role-badge" id="roleText">학생</span>
@@ -8315,6 +8312,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const ALBUM_STORAGE_KEY_BASE = 'class-admission-album-v1';
   const COUNSEL_STORAGE_KEY_BASE = 'class-admission-counsel-v1';
   const DAEIP_COPIED_KEY_BASE = 'class-admission-daeip-copied-date';
+  /* Supabase: Project URL / Publishable Key만 넣으세요. sb_secret·service_role은 사용 금지 */
   const SUPABASE_URL = 'https://lqlysybhyoinwwevrill.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-5g36RwSdOqVBP4eNoySsA_xs3MhViZ';
   const AUTH_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/';
@@ -8363,7 +8361,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function detectPasswordRecoveryFromUrl() {
     const hash = String(window.location.hash || '');
     const search = String(window.location.search || '');
-    return /type=recovery/i.test(hash + '&' + search) || /type%3Drecovery/i.test(hash + '&' + search);
+    const combined = hash + '&' + search;
+    return /type=recovery/i.test(combined) || /type%3Drecovery/i.test(combined);
   }
   function markPasswordRecovery(active) {
     isPasswordRecovery = !!active;
@@ -9340,10 +9339,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       if (active) tab.setAttribute('aria-current', 'page');
       else tab.removeAttribute('aria-current');
     });
-    if (next === 'susi' || next === 'jeongsi') {
-      if (typeof renderNow === 'function') renderNow(true);
-      else if (typeof render === 'function') render();
-    }
     if (next === 'susi-teacher') renderTeacherDashboard();
     if (next === 'jeongsi-teacher') renderJeongsiTeacherDashboard();
     if (next === 'album') renderAlbum();
@@ -9355,27 +9350,34 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const raw = String(name || fallback || '사용자').trim() || '사용자';
     return /T$/i.test(raw) ? raw : raw + 'T';
   }
+
   function getAuthUserName() {
     return String((currentProfile && currentProfile.name) || '').trim();
   }
+
+  /** 프로필 성명을 담임교사 칸에 맞춤 */
   function applyAuthNameToTeacher(force) {
     const name = getAuthUserName();
     if (!name) return;
     const el = $('#schoolTeacher');
     if (!el) return;
-    if (!force && String(el.value || '').trim()) return;
+    const cur = String(el.value || '').trim();
+    if (!force && cur) return;
     el.value = name;
     if (typeof persistSharedSchoolFromDom === 'function') persistSharedSchoolFromDom();
   }
+
   function applyAuthSchool(force) {
     const school = String((currentProfile && currentProfile.school) || '').trim();
     if (!school) return;
     const el = $('#schoolName');
     if (!el) return;
-    if (!force && String(el.value || '').trim()) return;
+    const cur = String(el.value || '').trim();
+    if (!force && cur) return;
     el.value = school;
     if (typeof persistSharedSchoolFromDom === 'function') persistSharedSchoolFromDom();
   }
+
   function showAuthMessage(text, isError) {
     const el = $('#authMessage');
     if (!el) return;
@@ -9402,36 +9404,62 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     });
   }
   function showLoginPanel() {
-    if ($('#authLogin')) $('#authLogin').hidden = false;
-    if ($('#authSignup')) $('#authSignup').hidden = true;
-    if ($('#authReset')) $('#authReset').hidden = true;
-    showAuthMessage(''); showSignupMessage(''); showResetMessage('');
-    setTimeout(() => { const email = $('#loginEmail'); if (email) email.focus(); }, 50);
+    const login = $('#authLogin');
+    const signup = $('#authSignup');
+    const reset = $('#authReset');
+    if (login) login.hidden = false;
+    if (signup) signup.hidden = true;
+    if (reset) reset.hidden = true;
+    showAuthMessage('');
+    showSignupMessage('');
+    showResetMessage('');
+    setTimeout(() => {
+      const email = $('#loginEmail');
+      if (email) email.focus();
+    }, 50);
   }
   function showSignupPanel() {
-    if ($('#authLogin')) $('#authLogin').hidden = true;
-    if ($('#authSignup')) $('#authSignup').hidden = false;
-    if ($('#authReset')) $('#authReset').hidden = true;
-    showAuthMessage(''); showSignupMessage(''); showResetMessage('');
-    setTimeout(() => { const name = $('#signupName'); if (name) name.focus(); }, 50);
+    const login = $('#authLogin');
+    const signup = $('#authSignup');
+    const reset = $('#authReset');
+    if (login) login.hidden = true;
+    if (signup) signup.hidden = false;
+    if (reset) reset.hidden = true;
+    showAuthMessage('');
+    showSignupMessage('');
+    showResetMessage('');
+    setTimeout(() => {
+      const name = $('#signupName');
+      if (name) name.focus();
+    }, 50);
   }
   function showResetPanel() {
+    const login = $('#authLogin');
+    const signup = $('#authSignup');
+    const reset = $('#authReset');
+    const gate = $('#loginGate');
+    const startActions = $('#homeStartActions');
+    const hero = document.querySelector('.home-hero');
+    const dataTools = $('#dataTools');
+    const chip = $('#userChip');
     isAuthenticated = false;
     document.body.classList.add('auth-locked');
-    if ($('#loginGate')) $('#loginGate').classList.remove('is-hidden');
-    if ($('#homeStartActions')) $('#homeStartActions').hidden = true;
-    const hero = document.querySelector('.home-hero');
+    if (gate) gate.classList.remove('is-hidden');
+    if (startActions) startActions.hidden = true;
     if (hero) hero.classList.remove('is-authenticated');
-    if ($('#dataTools')) $('#dataTools').hidden = true;
-    if ($('#userChip')) $('#userChip').hidden = true;
-    if ($('#authLogin')) $('#authLogin').hidden = true;
-    if ($('#authSignup')) $('#authSignup').hidden = true;
-    if ($('#authReset')) $('#authReset').hidden = false;
+    if (dataTools) dataTools.hidden = true;
+    if (chip) chip.hidden = true;
+    if (login) login.hidden = true;
+    if (signup) signup.hidden = true;
+    if (reset) reset.hidden = false;
     if ($('#resetPassword')) $('#resetPassword').value = '';
     if ($('#resetPasswordConfirm')) $('#resetPasswordConfirm').value = '';
     showResetMessage('');
     setPage('home');
-    setTimeout(() => { const input = $('#resetPassword'); if (input) input.focus(); }, 80);
+    setTimeout(() => {
+      const input = $('#resetPassword');
+      if (input) input.focus();
+    }, 80);
   }
   function getLoginFormData() {
     return {
@@ -9453,7 +9481,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       throw new Error('Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.');
     }
-    if (!supabaseClient) throw new Error('SUPABASE_URL과 SUPABASE_PUBLISHABLE_KEY를 실제 값으로 바꿔 주세요.');
+    if (!supabaseClient) {
+      throw new Error('SUPABASE_URL과 SUPABASE_PUBLISHABLE_KEY를 실제 값으로 바꿔 주세요.');
+    }
   }
   function updateUserChip(fallback) {
     const chip = $('#userChip');
@@ -9476,16 +9506,20 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const roleKey = normalizeRole(role);
     document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
     document.body.classList.add('role-' + roleKey);
-    if ($('#roleText')) $('#roleText').textContent = ROLE_LABELS[roleKey] || '학생';
+    const roleText = $('#roleText');
+    if (roleText) roleText.textContent = ROLE_LABELS[roleKey] || '학생';
     document.querySelectorAll('[data-page-target="susi"], [data-page-target="jeongsi"]').forEach((el) => {
       el.hidden = roleKey !== 'student' && roleKey !== 'teacher';
     });
     document.querySelectorAll('[data-page-target="susi-teacher"], [data-page-target="jeongsi-teacher"]').forEach((el) => {
       el.hidden = roleKey !== 'teacher';
     });
-    if ($('#btnOpenSusi')) $('#btnOpenSusi').hidden = !(roleKey === 'student' || roleKey === 'teacher');
-    if ($('#btnOpenJeongsi')) $('#btnOpenJeongsi').hidden = !(roleKey === 'student' || roleKey === 'teacher');
+    const startSusi = $('#btnOpenSusi');
+    const startJeongsi = $('#btnOpenJeongsi');
+    if (startSusi) startSusi.hidden = !(roleKey === 'student' || roleKey === 'teacher');
+    if (startJeongsi) startJeongsi.hidden = !(roleKey === 'student' || roleKey === 'teacher');
   }
+
   function resetWorkspaceMemory() {
     yearStore = {};
     albumStore = { years: {} };
@@ -9495,6 +9529,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     students = Array.from({ length: MAX }, (_, i) => emptyStudent(i + 1));
     try { applyYearState(null); } catch (_) { /* ignore */ }
   }
+
   function loadUserWorkspace() {
     try { load(); } catch (e) { console.error(e); }
     try { loadAlbumStore(); } catch (e) { console.error(e); }
@@ -9504,8 +9539,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       applyAuthSchool(false);
       persistSharedSchoolFromDom();
       updateDropRangeHint();
-      if (typeof renderNow === 'function') renderNow(false);
-      else render();
+      render();
       resetBoardHistoryBaseline();
       resetAlbumHistoryBaseline();
       updateYearPickerChrome();
@@ -9514,8 +9548,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       toast('화면 표시 오류: ' + (e.message || e), 'err');
     }
   }
+
   function unlockApp(profile, fallbackName, userId) {
-    if (isPasswordRecoveryActive()) { showResetPanel(); return; }
+    if (isPasswordRecoveryActive()) {
+      showResetPanel();
+      return;
+    }
     const nextUserId = String(userId || currentUserId || '').trim();
     if (nextUserId && nextUserId !== currentUserId) {
       currentUserId = nextUserId;
@@ -9524,18 +9562,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     } else if (nextUserId) {
       currentUserId = nextUserId;
     }
+    const gate = $('#loginGate');
+    const startActions = $('#homeStartActions');
+    const hero = document.querySelector('.home-hero');
+    const welcome = $('#homeWelcomeText');
     currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'student' };
     isAuthenticated = true;
-    if ($('#loginGate')) $('#loginGate').classList.add('is-hidden');
-    if ($('#homeStartActions')) $('#homeStartActions').hidden = false;
-    const hero = document.querySelector('.home-hero');
+    if (gate) gate.classList.add('is-hidden');
+    if (startActions) startActions.hidden = false;
     if (hero) hero.classList.add('is-authenticated');
-    if ($('#dataTools')) $('#dataTools').hidden = false;
+    const dataTools = $('#dataTools');
+    if (dataTools) dataTools.hidden = false;
     currentProfile.role = normalizeRole(currentProfile.role || 'student');
     updateRoleUi(currentProfile.role);
     const greetName = currentProfile.name || fallbackName || '회원';
-    if ($('#homeWelcomeText')) {
-      $('#homeWelcomeText').innerHTML = greetName + '님, 반갑습니다. 연도별 수시·정시 자료와 학생별 지원 현황을 관리하세요.<br>' +
+    if (welcome) {
+      welcome.innerHTML = greetName + '님, 반갑습니다. 연도별 수시·정시 자료와 학생별 지원 현황을 관리하세요.<br>' +
         '<a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>';
     }
     updateUserChip(fallbackName || greetName);
@@ -9544,37 +9586,54 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     document.body.classList.remove('auth-locked');
     setPage('home');
   }
+
   function lockApp() {
     isAuthenticated = false;
     currentProfile = null;
     currentUserId = null;
     resetWorkspaceMemory();
-    try { if (typeof renderNow === 'function') renderNow(false); else render(); } catch (_) { /* ignore */ }
+    try { render(); } catch (_) { /* ignore */ }
     document.body.classList.add('auth-locked');
     document.body.classList.remove('role-member', 'role-student', 'role-teacher', 'role-admin');
-    if ($('#loginGate')) $('#loginGate').classList.remove('is-hidden');
-    if ($('#homeStartActions')) $('#homeStartActions').hidden = true;
+    const gate = $('#loginGate');
+    if (gate) gate.classList.remove('is-hidden');
+    const startActions = $('#homeStartActions');
+    if (startActions) startActions.hidden = true;
     const hero = document.querySelector('.home-hero');
     if (hero) hero.classList.remove('is-authenticated');
-    if ($('#dataTools')) $('#dataTools').hidden = true;
-    if ($('#userChip')) $('#userChip').hidden = true;
-    if ($('#homeWelcomeText')) {
-      $('#homeWelcomeText').innerHTML = '연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.<br>' +
+    const dataTools = $('#dataTools');
+    if (dataTools) dataTools.hidden = true;
+    const chip = $('#userChip');
+    if (chip) chip.hidden = true;
+    const welcome = $('#homeWelcomeText');
+    if (welcome) {
+      welcome.innerHTML = '연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요. <span class="home-signup-notice">현재 테스트 중으로 회원가입 기능을 막아두었습니다.</span> - 김태훈<br>' +
         '<a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>';
     }
-    if ($('#roleText')) $('#roleText').textContent = '학생';
+    const roleText = $('#roleText');
+    if (roleText) roleText.textContent = '학생';
     showAuthMessage('');
     setPage('home');
     showLoginPanel();
   }
+
   async function fetchProfile(userId) {
-    const { data, error } = await supabaseClient.from('profiles').select('name, school, role').eq('id', userId).single();
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('name, school, role')
+      .eq('id', userId)
+      .single();
     if (error) throw error;
     return data;
   }
+
   async function updateMemberScreen(session) {
     const user = session && session.user;
-    if (!user) { showLoginPanel(); lockApp(); return; }
+    if (!user) {
+      showLoginPanel();
+      lockApp();
+      return;
+    }
     if (isPasswordRecoveryActive()) {
       markPasswordRecovery(true);
       showResetPanel();
@@ -9582,29 +9641,41 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       return;
     }
     try {
-      unlockApp(await fetchProfile(user.id), user.email, user.id);
+      const profile = await fetchProfile(user.id);
+      unlockApp(profile, user.email, user.id);
     } catch (err) {
       console.error(err);
-      unlockApp({
-        name: (user.user_metadata && user.user_metadata.name) || '',
-        school: (user.user_metadata && user.user_metadata.school) || '',
-        role: 'student'
-      }, user.email, user.id);
+      unlockApp(
+        {
+          name: (user.user_metadata && user.user_metadata.name) || '',
+          school: (user.user_metadata && user.user_metadata.school) || '',
+          role: 'student'
+        },
+        user.email,
+        user.id
+      );
     }
   }
+
   async function signUp() {
     if (authBusy) return;
     showSignupMessage('');
     try {
       ensureSupabaseReady();
       const { name, school, role, email, password, passwordConfirm } = getSignupFormData();
-      if (!name || !school || !email || !password || !passwordConfirm) throw new Error('성명, 학교, 이메일, 비밀번호, 비밀번호 확인을 모두 입력해 주세요.');
+      if (!name || !school || !email || !password || !passwordConfirm) {
+        throw new Error('성명, 학교, 이메일, 비밀번호, 비밀번호 확인을 모두 입력해 주세요.');
+      }
       if (password.length < 8) throw new Error('비밀번호는 8자 이상 입력해 주세요.');
       if (password !== passwordConfirm) throw new Error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       setAuthBusy(true);
       const { error } = await supabaseClient.auth.signUp({
-        email, password,
-        options: { data: { name, school, role }, emailRedirectTo: AUTH_REDIRECT_URL }
+        email,
+        password,
+        options: {
+          data: { name, school, role },
+          emailRedirectTo: AUTH_REDIRECT_URL
+        }
       });
       if (error) throw error;
       showSignupMessage('회원가입이 완료되었습니다. 인증 이메일을 확인한 뒤 로그인해 주세요.', false);
@@ -9612,8 +9683,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       if ($('#loginPassword')) $('#loginPassword').value = '';
     } catch (error) {
       showSignupMessage((error && error.message) || '회원가입에 실패했습니다.', true);
-    } finally { setAuthBusy(false); }
+    } finally {
+      setAuthBusy(false);
+    }
   }
+
   function getSignInErrorMessage(error) {
     const msg = String((error && error.message) || '');
     const code = String((error && error.code) || '');
@@ -9627,6 +9701,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     }
     return msg || '로그인에 실패했습니다.';
   }
+
   async function signIn() {
     if (authBusy) return;
     showAuthMessage('');
@@ -9639,8 +9714,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       if (error) throw error;
     } catch (error) {
       showAuthMessage(getSignInErrorMessage(error), true);
-    } finally { setAuthBusy(false); }
+    } finally {
+      setAuthBusy(false);
+    }
   }
+
   async function requestPasswordReset() {
     if (authBusy) return;
     showAuthMessage('');
@@ -9650,13 +9728,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       if (!email) throw new Error('가입한 이메일을 입력한 뒤 비밀번호 찾기를 눌러 주세요.');
       setAuthBusy(true);
       try { sessionStorage.setItem('cab-password-recovery-pending', '1'); } catch (_) { /* ignore */ }
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_RECOVERY_REDIRECT_URL });
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: AUTH_RECOVERY_REDIRECT_URL
+      });
       if (error) throw error;
       showAuthMessage('비밀번호 재설정 메일을 보냈습니다. 이메일의 링크를 확인해 주세요.', false);
     } catch (error) {
       showAuthMessage((error && error.message) || '비밀번호 재설정 메일 발송에 실패했습니다.', true);
-    } finally { setAuthBusy(false); }
+    } finally {
+      setAuthBusy(false);
+    }
   }
+
   async function saveRecoveredPassword() {
     if (authBusy) return;
     showResetMessage('');
@@ -9677,26 +9760,39 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       toast('비밀번호가 변경되었습니다', 'ok');
     } catch (error) {
       showResetMessage((error && error.message) || '비밀번호 변경에 실패했습니다.', true);
-    } finally { setAuthBusy(false); }
+    } finally {
+      setAuthBusy(false);
+    }
   }
+
   async function cancelPasswordReset() {
     markPasswordRecovery(false);
     clearAuthRedirectHash();
     try {
       if (supabaseClient) await supabaseClient.auth.signOut();
-      else { showLoginPanel(); lockApp(); }
-    } catch (_) { showLoginPanel(); lockApp(); }
+      else {
+        showLoginPanel();
+        lockApp();
+      }
+    } catch (_) {
+      showLoginPanel();
+      lockApp();
+    }
   }
+
   async function logoutApp() {
     try {
       if (supabaseClient) {
         const { error } = await supabaseClient.auth.signOut();
         if (error) throw error;
-      } else lockApp();
+      } else {
+        lockApp();
+      }
     } catch (error) {
       alert((error && error.message) || '로그아웃에 실패했습니다.');
     }
   }
+
   async function initSupabaseAuth() {
     if (!supabaseClient) {
       showAuthMessage('SUPABASE_URL과 SUPABASE_PUBLISHABLE_KEY를 실제 값으로 바꿔 주세요.', true);
@@ -9704,7 +9800,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       return;
     }
     if (isPasswordRecoveryActive()) markPasswordRecovery(true);
-    supabaseClient.auth.onAuthStateChange((_event, session) => { updateMemberScreen(session); });
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      updateMemberScreen(session);
+    });
     const { data } = await supabaseClient.auth.getSession();
     await updateMemberScreen(data.session);
   }
@@ -11629,28 +11727,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     updateStats();
   }
 
-  function shouldPaintBoard() {
-    const page = document.body && document.body.dataset ? document.body.dataset.page : '';
-    return page === 'susi' || page === 'jeongsi';
-  }
-  function renderNow(force) {
-    updateStats();
-    if (!force && !shouldPaintBoard()) {
-      initSheetSelection();
-      initMockSheetSelection();
-      return;
-    }
+  function render() {
     grid.innerHTML = students.map(st =>
       st.unlocked ? renderActive(st) : renderLocked(st)
     ).join('');
+    updateStats();
     bindCardEvents();
-  }
-  function render() {
-    // 보드 탭에서는 즉시 반영(입력 직후 DOM 의존 로직 안전), 그 외 탭은 통계만 갱신
-    renderNow(false);
-  }
-  function renderImmediate() {
-    renderNow(true);
   }
 
   function getStudentFromEl(el) {
@@ -11661,86 +11743,83 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function bindCardEvents() {
-    if (!bindCardEvents._delegated) {
-      bindCardEvents._delegated = true;
-      grid.addEventListener('input', (e) => {
-        const t = e.target;
-        if (!t || !t.closest || !t.closest('.student-card:not(.locked)')) return;
-        if (t.classList.contains('cell')) onCellInput(e);
-        else if (t.classList.contains('wait-number')) onWaitNumberInput(e);
-        else if (t.classList.contains('mock-cell') && t.closest('.card-mock-table')) onStudentMockScoreInput(e);
-        else if (t.isContentEditable && t.dataset.field === 'contact') onContactInput(e);
+    grid.querySelectorAll('.student-card:not(.locked)').forEach(card => {
+      card.querySelectorAll('.cell').forEach(input => {
+        input.addEventListener('input', onCellInput);
+        input.addEventListener('change', onCellInput);
+        input.addEventListener('blur', onCellInput);
+        input.addEventListener('keydown', onCellKeydown);
+        if (input.dataset.field === 'uni') {
+          input.addEventListener('focus', () => {
+            clearTimeout(uniSuggestHideTimer);
+            if (input.value.trim()) renderUniversitySuggest(input, input.value);
+          });
+          input.addEventListener('blur', () => {
+            uniSuggestHideTimer = setTimeout(hideUniversitySuggest, 140);
+          });
+        }
+        if (input.dataset.field === 'type') {
+          input.addEventListener('focus', () => {
+            clearTimeout(uniSuggestHideTimer);
+            renderTypeSuggest(input, input.value);
+          });
+          input.addEventListener('blur', () => {
+            uniSuggestHideTimer = setTimeout(hideUniversitySuggest, 140);
+          });
+        }
+        if (isDaeipDateField(input.dataset.field)) {
+          input.addEventListener('click', onDateFieldClick);
+          input.addEventListener('keydown', onDateFieldKeydown);
+        }
       });
-      grid.addEventListener('change', (e) => {
-        const t = e.target;
-        if (!t || !t.closest || !t.closest('.student-card:not(.locked)')) return;
-        if (t.classList.contains('cell')) onCellInput(e);
-        else if (t.classList.contains('wait-number')) onWaitNumberInput(e);
-        else if (t.classList.contains('mock-cell') && t.closest('.card-mock-table')) onStudentMockScoreInput(e);
+      card.querySelectorAll('.wait-number').forEach(input => {
+        input.addEventListener('input', onWaitNumberInput);
+        input.addEventListener('change', onWaitNumberInput);
+        input.addEventListener('blur', onWaitNumberInput);
       });
-      grid.addEventListener('focusin', (e) => {
-        const t = e.target;
-        if (!t || !t.closest || !t.closest('.student-card:not(.locked)')) return;
-        if (t.classList && t.classList.contains('cell')) {
-          clearTimeout(uniSuggestHideTimer);
-          if (t.dataset.field === 'uni' && t.value.trim()) renderUniversitySuggest(t, t.value);
-          else if (t.dataset.field === 'type') renderTypeSuggest(t, t.value);
-        } else if (t.classList && t.classList.contains('mock-cell') && t.closest('.card-mock-table')) {
-          const cardEl = t.closest('.student-card');
+      card.querySelectorAll('.card-mock-table input.mock-cell').forEach((input) => {
+        input.addEventListener('input', onStudentMockScoreInput);
+        input.addEventListener('change', onStudentMockScoreInput);
+        input.addEventListener('keydown', onMockCellKeydown);
+        input.addEventListener('focus', () => {
+          const cardEl = input.closest('.student-card');
           if (!cardEl) return;
           if (!(mockSel.dragging || (mockSel.card === cardEl && mockSel.anchor))) {
             mockSel.card = cardEl;
-            mockSel.anchor = mockCellPos(t);
+            mockSel.anchor = mockCellPos(input);
             mockSel.focus = { ...mockSel.anchor };
             clearCellSelection();
             sheetSel.anchor = null;
             sheetSel.focus = null;
             applyMockSelection();
           }
+        });
+      });
+      card.querySelectorAll('[contenteditable="true"]').forEach(el => {
+        if (el.dataset.mockSubject) {
+          el.addEventListener('blur', onMockSubjectLabelBlur);
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+          });
+          return;
         }
-      });
-      grid.addEventListener('focusout', (e) => {
-        const t = e.target;
-        if (!t || !t.closest || !t.closest('.student-card:not(.locked)')) return;
-        if (t.classList && t.classList.contains('cell')) {
-          onCellInput(e);
-          if (t.dataset.field === 'uni' || t.dataset.field === 'type') {
-            uniSuggestHideTimer = setTimeout(hideUniversitySuggest, 140);
-          }
-        } else if (t.classList && t.classList.contains('wait-number')) {
-          onWaitNumberInput(e);
-        } else if (t.isContentEditable) {
-          if (t.dataset.mockSubject) onMockSubjectLabelBlur(e);
-          else if (t.dataset.mockLabelRow != null) onMockRowLabelBlur(e);
-          else onHeadEdit(e);
+        if (el.dataset.mockLabelRow != null) {
+          el.addEventListener('blur', onMockRowLabelBlur);
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+          });
+          return;
         }
-      });
-      grid.addEventListener('keydown', (e) => {
-        const t = e.target;
-        if (!t || !t.closest || !t.closest('.student-card:not(.locked)')) return;
-        if (t.classList && t.classList.contains('cell')) {
-          onCellKeydown(e);
-          if (isDaeipDateField(t.dataset.field)) onDateFieldKeydown(e);
-        } else if (t.classList && t.classList.contains('mock-cell') && t.closest('.card-mock-table')) {
-          onMockCellKeydown(e);
-        } else if (t.isContentEditable && e.key === 'Enter') {
-          e.preventDefault();
-          t.blur();
+        el.addEventListener('blur', onHeadEdit);
+        if (el.dataset.field === 'contact') {
+          el.addEventListener('input', onContactInput);
+          el.addEventListener('paste', onContactPaste);
         }
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        });
       });
-      grid.addEventListener('click', (e) => {
-        const t = e.target;
-        if (!t || !t.classList || !t.classList.contains('cell')) return;
-        if (!t.closest('.student-card:not(.locked)')) return;
-        if (isDaeipDateField(t.dataset.field)) onDateFieldClick(e);
-      });
-      grid.addEventListener('paste', (e) => {
-        const t = e.target;
-        if (!t || !t.isContentEditable || t.dataset.field !== 'contact') return;
-        if (!t.closest('.student-card:not(.locked)')) return;
-        onContactPaste(e);
-      });
-    }
+    });
     initSheetSelection();
     initMockSheetSelection();
   }
@@ -15297,6 +15376,7 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
     if (!isAuthenticated || !currentUserId) return;
     persistSharedSchoolFromDom();
     ensureYearBucket(currentYear)[currentTrack] = captureState();
+    // 수시·정시 모두 동일 학급 정보 유지
     persistSharedSchoolFromDom();
     try {
       const boardKey = getBoardStorageKey();
@@ -15313,7 +15393,7 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
   let saveTimer;
   function scheduleSave() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 500);
+    saveTimer = setTimeout(save, 400);
   }
 
   /* ---------- Undo / Redo (Ctrl+Z) ---------- */
@@ -18229,7 +18309,10 @@ init();
     const el = $('#' + id);
     if (!el) return;
     el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); saveRecoveredPassword(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveRecoveredPassword();
+      }
     });
   });
   $('#userChip').addEventListener('click', logoutApp);
@@ -18383,7 +18466,7 @@ init();
 
   try {
     updateDropRangeHint();
-    renderNow(true);
+    render();
     resetBoardHistoryBaseline();
     resetAlbumHistoryBaseline();
   } catch (e) { console.error(e); toast('화면 표시 오류: ' + (e.message || e), 'err'); }
