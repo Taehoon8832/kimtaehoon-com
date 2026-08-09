@@ -56,3 +56,11 @@ create trigger user_workspaces_set_updated_at
 before update on public.user_workspaces
 for each row
 execute procedure public.touch_user_workspace_updated_at();
+
+-- API(로그인 사용자)에 테이블 사용 권한 부여
+-- ※ RLS만 있으면 부족합니다. GRANT 없으면 permission denied(42501) 발생.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on table public.user_workspaces to authenticated;
+grant all on table public.user_workspaces to service_role;
+
+notify pgrst, 'reload schema';

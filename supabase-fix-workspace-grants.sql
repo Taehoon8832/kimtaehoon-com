@@ -1,9 +1,11 @@
 -- =========================================================
--- user_workspaces 권한 오류 해결 SQL
--- Supabase > SQL Editor > + New 에 붙여넣고 Run
+-- 클라우드 불러오기/저장 권한 오류 해결 (지금 바로 실행)
+-- Supabase 대시보드 > SQL Editor > New query 에 전체 붙여넣고 Run
+-- =========================================================
+-- 원인: user_workspaces 테이블은 있어도 authenticated 역할에
+--       SELECT/INSERT/UPDATE GRANT가 없으면 API가 거부합니다.
 -- =========================================================
 
--- 1) 테이블이 없으면 생성
 create table if not exists public.user_workspaces (
   user_id uuid primary key references auth.users(id) on delete cascade,
   board jsonb not null default '{}'::jsonb,
@@ -12,10 +14,8 @@ create table if not exists public.user_workspaces (
   updated_at timestamptz not null default now()
 );
 
--- 2) RLS 켜기
 alter table public.user_workspaces enable row level security;
 
--- 3) 정책 재설정 (본인 데이터만)
 drop policy if exists "본인 워크스페이스 조회" on public.user_workspaces;
 create policy "본인 워크스페이스 조회"
 on public.user_workspaces
@@ -45,10 +45,17 @@ for delete
 to authenticated
 using ((select auth.uid()) = user_id);
 
--- 4) ★ 핵심: API(authenticated)에 테이블 사용 권한 부여
+-- ★ 핵심: 로그인 API 역할에 테이블 권한 부여
 grant usage on schema public to anon, authenticated;
+revoke all on table public.user_workspaces from public;
 grant select, insert, update, delete on table public.user_workspaces to authenticated;
 grant all on table public.user_workspaces to service_role;
 
--- 5) API 스키마 캐시 새로고침
+-- PostgREST 스키마 캐시 새로고침
 notify pgrst, 'reload schema';
+
+-- 확인용 (선택): 권한이 authenticated에 보이면 정상
+-- select grantee, privilege_type
+-- from information_schema.role_table_grants
+-- where table_schema = 'public' and table_name = 'user_workspaces'
+-- order by grantee, privilege_type;
