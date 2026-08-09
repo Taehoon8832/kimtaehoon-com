@@ -8321,44 +8321,136 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const AUTH_RECOVERY_REDIRECT_URL = 'https://taehoon8832.github.io/kimtaehoon-com/?type=recovery';
   const ROLE_LABELS = { student: '학생', teacher: '교사' };
   let currentUserId = null;
+  let currentUserEmail = '';
   let currentProfile = null;
   let authBusy = false;
   let isPasswordRecovery = false;
+  let cloudSaveTimer = null;
+  let cloudSaveInFlight = false;
+  let cloudSaveQueued = false;
+  let workspaceLoadToken = 0;
 
   function scopedStorageKey(base) {
     if (!currentUserId) return null;
     return base + '::uid::' + currentUserId;
   }
-  function migrateLegacyStoreOnce(baseKey, scopedKey) {
-    if (!scopedKey || !currentUserId) return;
+  function getBoardStorageKey() { return scopedStorageKey(STORAGE_KEY_BASE); }
+  function getAlbumStorageKey() { return scopedStorageKey(ALBUM_STORAGE_KEY_BASE); }
+  function getCounselStorageKey() { return scopedStorageKey(COUNSEL_STORAGE_KEY_BASE); }
+  function getDaeipCopiedKey() { return scopedStorageKey(DAEIP_COPIED_KEY_BASE); }
+
+  function buildBoardPayload() {
+    return {
+      version: 3,
+      activeYear: currentYear,
+      activeTrack: currentTrack,
+      years: yearStore
+    };
+  }
+  function buildAlbumPayload() {
+    return { version: 1, years: (albumStore && albumStore.years) || {} };
+  }
+  function buildCounselPayload() {
+    return { version: 1, years: (counselStore && counselStore.years) || {} };
+  }
+  function writeLocalCache(kind, payload) {
     try {
-      if (localStorage.getItem(scopedKey)) return;
-      const legacy = localStorage.getItem(baseKey);
-      if (!legacy) return;
-      const claimKey = baseKey + '::migrated-owner';
-      const claimedBy = localStorage.getItem(claimKey);
-      if (claimedBy && claimedBy !== currentUserId) return;
-      localStorage.setItem(scopedKey, legacy);
-      localStorage.setItem(claimKey, currentUserId);
-      localStorage.removeItem(baseKey);
+      const key = kind === 'board' ? getBoardStorageKey()
+        : kind === 'album' ? getAlbumStorageKey()
+        : kind === 'counsel' ? getCounselStorageKey()
+        : null;
+      if (!key) return;
+      localStorage.setItem(key, JSON.stringify(payload));
     } catch (_) { /* ignore */ }
   }
-  function getBoardStorageKey() {
-    const key = scopedStorageKey(STORAGE_KEY_BASE);
-    migrateLegacyStoreOnce(STORAGE_KEY_BASE, key);
-    return key;
+  function readLocalCache(kind) {
+    try {
+      const key = kind === 'board' ? getBoardStorageKey()
+        : kind === 'album' ? getAlbumStorageKey()
+        : kind === 'counsel' ? getCounselStorageKey()
+        : null;
+      if (!key) return null;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
   }
-  function getAlbumStorageKey() {
-    const key = scopedStorageKey(ALBUM_STORAGE_KEY_BASE);
-    migrateLegacyStoreOnce(ALBUM_STORAGE_KEY_BASE, key);
-    return key;
+  async function pushWorkspaceToCloud() {
+    if (!supabaseClient || !currentUserId || !isAuthenticated) return;
+    if (cloudSaveInFlight) { cloudSaveQueued = true; return; }
+    cloudSaveInFlight = true;
+    const ownerId = currentUserId;
+    try {
+      const { error } = await supabaseClient.from('user_workspaces').upsert({
+        user_id: ownerId,
+        board: buildBoardPayload(),
+        album: buildAlbumPayload(),
+        counsel: buildCounselPayload(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      const msg = String((err && err.message) || '');
+      if (/user_workspaces/i.test(msg) && (/does not exist/i.test(msg) || /Could not find the table/i.test(msg))) {
+        toast('클라우드 저장 테이블이 없습니다. supabase-user-workspaces.sql 을 실행해 주세요.', 'err');
+      } else {
+        toast('클라우드 동기화 실패(이 PC 캐시는 유지됨)', 'err');
+      }
+    } finally {
+      cloudSaveInFlight = false;
+      if (cloudSaveQueued && currentUserId === ownerId) {
+        cloudSaveQueued = false;
+        pushWorkspaceToCloud();
+      }
+    }
   }
-  function getCounselStorageKey() {
-    const key = scopedStorageKey(COUNSEL_STORAGE_KEY_BASE);
-    migrateLegacyStoreOnce(COUNSEL_STORAGE_KEY_BASE, key);
-    return key;
+  function scheduleCloudSave() {
+    if (!currentUserId || !isAuthenticated) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(() => { pushWorkspaceToCloud(); }, 900);
   }
-  function getDaeipCopiedKey() { return scopedStorageKey(DAEIP_COPIED_KEY_BASE); }
+  function applyBoardPayload(data) {
+    if (data && data.years && typeof data.years === 'object') {
+      yearStore = data.years;
+      const savedYear = Number(data.activeYear);
+      currentYear = savedYear >= 2026 && savedYear <= 2030 ? savedYear : 2027;
+      currentTrack = data.activeTrack === 'jeongsi' ? 'jeongsi' : 'susi';
+    } else if (data && typeof data === 'object' && Object.keys(data).length) {
+      currentYear = 2027;
+      currentTrack = 'susi';
+      yearStore = { 2027: { susi: data } };
+    } else {
+      yearStore = {};
+      applyYearState(null);
+      updateYearPickerChrome();
+      return;
+    }
+    applyYearState(getStoredState(currentYear, currentTrack));
+    if (typeof mergeSchoolFromPeerIfNeeded === 'function') mergeSchoolFromPeerIfNeeded();
+    const yearSelect = $('#yearSelect');
+    if (yearSelect) yearSelect.value = String(currentYear);
+    updateYearPickerChrome();
+  }
+  function applyAlbumPayload(data) {
+    albumStore = data && typeof data === 'object'
+      ? { years: data.years && typeof data.years === 'object' ? data.years : {} }
+      : { years: {} };
+  }
+  function applyCounselPayload(data) {
+    counselStore = data && typeof data === 'object'
+      ? { years: data.years && typeof data.years === 'object' ? data.years : {} }
+      : { years: {} };
+  }
+  async function pullWorkspaceFromCloud() {
+    if (!supabaseClient || !currentUserId) return null;
+    const { data, error } = await supabaseClient
+      .from('user_workspaces')
+      .select('board, album, counsel, updated_at')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
 
   function detectPasswordRecoveryFromUrl() {
     const hash = String(window.location.hash || '');
@@ -9487,18 +9579,28 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if ($('#btnOpenJeongsi')) $('#btnOpenJeongsi').hidden = !(roleKey === 'student' || roleKey === 'teacher');
   }
   function resetWorkspaceMemory() {
+    clearTimeout(cloudSaveTimer);
+    cloudSaveQueued = false;
     yearStore = {};
     albumStore = { years: {} };
     counselStore = { years: {} };
+    roles = { president: null, vice: null };
     MAX = DEFAULT_MAX;
     document.documentElement.style.setProperty('--max-students', String(MAX));
     students = Array.from({ length: MAX }, (_, i) => emptyStudent(i + 1));
+    try { if (typeof clearUndoSnapshot !== 'undefined') clearUndoSnapshot = null; } catch (_) { /* ignore */ }
+    try { if (typeof boardUndoStack !== 'undefined') boardUndoStack = []; } catch (_) { /* ignore */ }
+    try { if (typeof boardRedoStack !== 'undefined') boardRedoStack = []; } catch (_) { /* ignore */ }
+    try { if (typeof albumUndoStack !== 'undefined') albumUndoStack = []; } catch (_) { /* ignore */ }
+    try { if (typeof albumRedoStack !== 'undefined') albumRedoStack = []; } catch (_) { /* ignore */ }
     try { applyYearState(null); } catch (_) { /* ignore */ }
+    try { writeSchoolFields({ name: '', grade: '', classNo: '', teacher: '' }); } catch (_) { /* ignore */ }
+    try { if (grid) grid.innerHTML = ''; } catch (_) { /* ignore */ }
+    document.body.removeAttribute('data-owner-id');
+    document.body.removeAttribute('data-owner-email');
   }
-  function loadUserWorkspace() {
-    try { load(); } catch (e) { console.error(e); }
-    try { loadAlbumStore(); } catch (e) { console.error(e); }
-    try { loadCounselStore(); } catch (e) { console.error(e); }
+
+  function hydrateWorkspaceUi() {
     try {
       applyAuthNameToTeacher(false);
       applyAuthSchool(false);
@@ -9506,26 +9608,72 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       updateDropRangeHint();
       if (typeof renderNow === 'function') renderNow(false);
       else render();
-      resetBoardHistoryBaseline();
-      resetAlbumHistoryBaseline();
+      if (typeof resetBoardHistoryBaseline === 'function') resetBoardHistoryBaseline();
+      if (typeof resetAlbumHistoryBaseline === 'function') resetAlbumHistoryBaseline();
       updateYearPickerChrome();
+      if (typeof updateUndoClearButton === 'function') updateUndoClearButton();
     } catch (e) {
       console.error(e);
       toast('화면 표시 오류: ' + (e.message || e), 'err');
     }
   }
-  function unlockApp(profile, fallbackName, userId) {
-    if (isPasswordRecoveryActive()) { showResetPanel(); return; }
-    const nextUserId = String(userId || currentUserId || '').trim();
-    if (nextUserId && nextUserId !== currentUserId) {
-      currentUserId = nextUserId;
-      resetWorkspaceMemory();
-      loadUserWorkspace();
-    } else if (nextUserId) {
-      currentUserId = nextUserId;
+
+  async function loadUserWorkspace() {
+    const token = ++workspaceLoadToken;
+    const ownerId = currentUserId;
+    if (!ownerId) return;
+
+    // 1) 화면은 먼저 비운 뒤, 2) 클라우드(해당 계정) → 3) 계정 전용 로컬캐시 순으로 채움
+    resetWorkspaceMemory();
+    currentUserId = ownerId; // reset clears id attribution flags only, keep owner
+
+    let cloud = null;
+    try {
+      cloud = await pullWorkspaceFromCloud();
+    } catch (err) {
+      console.error(err);
+      toast('클라우드 불러오기 실패: 이 PC의 계정 캐시를 사용합니다', 'err');
     }
+    if (token !== workspaceLoadToken || currentUserId !== ownerId) return;
+
+    if (cloud) {
+      applyBoardPayload(cloud.board || {});
+      applyAlbumPayload(cloud.album || {});
+      applyCounselPayload(cloud.counsel || {});
+      writeLocalCache('board', buildBoardPayload());
+      writeLocalCache('album', buildAlbumPayload());
+      writeLocalCache('counsel', buildCounselPayload());
+    } else {
+      const localBoard = readLocalCache('board');
+      const localAlbum = readLocalCache('album');
+      const localCounsel = readLocalCache('counsel');
+      applyBoardPayload(localBoard || {});
+      applyAlbumPayload(localAlbum || {});
+      applyCounselPayload(localCounsel || {});
+      // 첫 로그인(클라우드 없음)이면 현재 상태를 클라우드에 생성
+      scheduleCloudSave();
+    }
+
+    if (token !== workspaceLoadToken || currentUserId !== ownerId) return;
+    document.body.setAttribute('data-owner-id', ownerId);
+    if (currentUserEmail) document.body.setAttribute('data-owner-email', currentUserEmail);
+    hydrateWorkspaceUi();
+  }
+
+  async function unlockApp(profile, fallbackName, userId, userEmail) {
+    if (isPasswordRecoveryActive()) { showResetPanel(); return; }
+    const nextUserId = String(userId || '').trim();
+    if (!nextUserId) {
+      lockApp();
+      return;
+    }
+
+    const switching = !isAuthenticated || currentUserId !== nextUserId;
+    currentUserId = nextUserId;
+    currentUserEmail = String(userEmail || (profile && profile.email) || fallbackName || '').trim();
     currentProfile = profile || currentProfile || { name: fallbackName || '', school: '', role: 'student' };
     isAuthenticated = true;
+
     if ($('#loginGate')) $('#loginGate').classList.add('is-hidden');
     if ($('#homeStartActions')) $('#homeStartActions').hidden = false;
     const hero = document.querySelector('.home-hero');
@@ -9535,19 +9683,30 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     updateRoleUi(currentProfile.role);
     const greetName = currentProfile.name || fallbackName || '회원';
     if ($('#homeWelcomeText')) {
-      $('#homeWelcomeText').innerHTML = greetName + '님, 반갑습니다. 연도별 수시·정시 자료와 학생별 지원 현황을 관리하세요.<br>' +
+      $('#homeWelcomeText').innerHTML = greetName + '님 전용 화면입니다. 다른 담임 계정 데이터는 보이지 않습니다.<br>' +
         '<a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>';
     }
     updateUserChip(fallbackName || greetName);
-    applyAuthNameToTeacher(false);
-    applyAuthSchool(false);
     document.body.classList.remove('auth-locked');
+    document.body.setAttribute('data-owner-id', nextUserId);
+    if (currentUserEmail) document.body.setAttribute('data-owner-email', currentUserEmail);
     setPage('home');
+
+    if (switching) {
+      await loadUserWorkspace();
+    } else {
+      hydrateWorkspaceUi();
+    }
   }
+
   function lockApp() {
+    workspaceLoadToken += 1;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveQueued = false;
     isAuthenticated = false;
     currentProfile = null;
     currentUserId = null;
+    currentUserEmail = '';
     resetWorkspaceMemory();
     try { if (typeof renderNow === 'function') renderNow(false); else render(); } catch (_) { /* ignore */ }
     document.body.classList.add('auth-locked');
@@ -9559,7 +9718,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if ($('#dataTools')) $('#dataTools').hidden = true;
     if ($('#userChip')) $('#userChip').hidden = true;
     if ($('#homeWelcomeText')) {
-      $('#homeWelcomeText').innerHTML = '연도별 수시·정시 자료와 학생별 지원 현황을 하나의 보드에서 안전하게 관리하세요.<br>' +
+      $('#homeWelcomeText').innerHTML = '담임 계정으로 로그인하면 해당 아이디의 진학 자료만 불러옵니다.<br>' +
         '<a class="home-board-link" href="https://script.google.com/macros/s/AKfycbxPPYJgogbTTlL9Ds7Ahb-Qdj8Ylr4rryF1WGp7pyiLTqZzUE9fFo-SuRF22WDLjaZprA/exec" target="_blank" rel="noopener noreferrer">▶[질문 및 건의 게시판]</a>';
     }
     if ($('#roleText')) $('#roleText').textContent = '학생';
@@ -9582,14 +9741,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       return;
     }
     try {
-      unlockApp(await fetchProfile(user.id), user.email, user.id);
+      const profile = await fetchProfile(user.id);
+      await unlockApp(profile, user.email, user.id, user.email);
     } catch (err) {
       console.error(err);
-      unlockApp({
+      await unlockApp({
         name: (user.user_metadata && user.user_metadata.name) || '',
         school: (user.user_metadata && user.user_metadata.school) || '',
         role: 'student'
-      }, user.email, user.id);
+      }, user.email, user.id, user.email);
     }
   }
   async function signUp() {
@@ -15298,16 +15458,8 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
     persistSharedSchoolFromDom();
     ensureYearBucket(currentYear)[currentTrack] = captureState();
     persistSharedSchoolFromDom();
-    try {
-      const boardKey = getBoardStorageKey();
-      if (!boardKey) return;
-      localStorage.setItem(boardKey, JSON.stringify({
-        version: 3,
-        activeYear: currentYear,
-        activeTrack: currentTrack,
-        years: yearStore
-      }));
-    } catch (_) { /* quota */ }
+    writeLocalCache('board', buildBoardPayload());
+    scheduleCloudSave();
   }
 
   let saveTimer;
@@ -15598,37 +15750,13 @@ ${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}
   }
 
   function load() {
+    // 계정 전용 로컬 캐시 폴백 (클라우드 우선 로드는 loadUserWorkspace에서 수행)
     try {
-      const boardKey = getBoardStorageKey();
-      if (!boardKey) {
-        applyYearState(null);
-        updateYearPickerChrome();
-        return;
-      }
-      const raw = localStorage.getItem(boardKey);
-      if (!raw) {
-        applyYearState(null);
-        updateYearPickerChrome();
-        return;
-      }
-      const data = JSON.parse(raw);
-      if (data && data.years && typeof data.years === 'object') {
-        yearStore = data.years;
-        const savedYear = Number(data.activeYear);
-        currentYear = savedYear >= 2026 && savedYear <= 2030 ? savedYear : 2027;
-        currentTrack = data.activeTrack === 'jeongsi' ? 'jeongsi' : 'susi';
-      } else {
-        // 기존 단일 연도 저장 데이터는 2027학년도로 자동 이전
-        currentYear = 2027;
-        currentTrack = 'susi';
-        yearStore = { 2027: { susi: data } };
-      }
-      applyYearState(getStoredState(currentYear, currentTrack));
-      mergeSchoolFromPeerIfNeeded();
-      const yearSelect = $('#yearSelect');
-      if (yearSelect) yearSelect.value = String(currentYear);
+      applyBoardPayload(readLocalCache('board') || {});
+    } catch (_) {
+      applyYearState(null);
       updateYearPickerChrome();
-    } catch (_) { /* ignore */ }
+    }
   }
 
   function switchYear(nextYear) {
@@ -16583,38 +16711,13 @@ init();
   let counselEditingId = '';
 
   function loadCounselStore() {
-    try {
-      const counselKey = getCounselStorageKey();
-      if (!counselKey) {
-        counselStore = { years: {} };
-        return;
-      }
-      const raw = localStorage.getItem(counselKey);
-      if (!raw) {
-        counselStore = { years: {} };
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      counselStore = parsed && typeof parsed === 'object'
-        ? { years: parsed.years && typeof parsed.years === 'object' ? parsed.years : {} }
-        : { years: {} };
-    } catch (_) {
-      counselStore = { years: {} };
-    }
+    applyCounselPayload(readLocalCache('counsel') || {});
   }
 
   function saveCounselStore() {
     if (!isAuthenticated || !currentUserId) return;
-    try {
-      const counselKey = getCounselStorageKey();
-      if (!counselKey) return;
-      localStorage.setItem(counselKey, JSON.stringify({
-        version: 1,
-        years: counselStore.years
-      }));
-    } catch (_) {
-      toast('상담 일정 저장 공간이 부족합니다', 'err');
-    }
+    writeLocalCache('counsel', buildCounselPayload());
+    scheduleCloudSave();
   }
 
   function getCounselEvents(year) {
@@ -17126,35 +17229,14 @@ init();
   let albumEditorImage = '';
 
   function loadAlbumStore() {
-    try {
-      const albumKey = getAlbumStorageKey();
-      if (!albumKey) {
-        albumStore = { years: {} };
-        return;
-      }
-      const raw = localStorage.getItem(albumKey);
-      if (!raw) {
-        albumStore = { years: {} };
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      albumStore = parsed && typeof parsed === 'object'
-        ? { years: parsed.years && typeof parsed.years === 'object' ? parsed.years : {} }
-        : { years: {} };
-    } catch (_) {
-      albumStore = { years: {} };
-    }
+    applyAlbumPayload(readLocalCache('album') || {});
   }
 
   function saveAlbumStore() {
     if (!isAuthenticated || !currentUserId) return false;
     try {
-      const albumKey = getAlbumStorageKey();
-      if (!albumKey) return false;
-      localStorage.setItem(albumKey, JSON.stringify({
-        version: 1,
-        years: albumStore.years
-      }));
+      writeLocalCache('album', buildAlbumPayload());
+      scheduleCloudSave();
       return true;
     } catch (_) {
       toast('저장 공간이 부족합니다. 사진을 줄이거나 일부를 삭제해 주세요.', 'err');
@@ -17715,6 +17797,7 @@ init();
     updateYearPickerChrome();
     updateDropRangeHint();
     render();
+    scheduleCloudSave();
     if (document.body.dataset.page === 'susi-teacher') renderTeacherDashboard();
     if (document.body.dataset.page === 'jeongsi-teacher') renderJeongsiTeacherDashboard();
     if (document.body.dataset.page === 'album') renderAlbum();
